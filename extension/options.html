@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Настройки Quiz Study Assistant</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="settings">
+      <header class="settings-header">
+        <img class="app-icon" src="icons/icon-48.png" alt="">
+        <h1>Настройки</h1>
+      </header>
+      <form id="settingsForm">
+        <label>
+          OpenAI API-ключ
+          <input id="apiKey" name="apiKey" type="password" autocomplete="off" placeholder="sk-...">
+        </label>
+        <label>
+          Модель
+          <input id="model" name="model" type="text" autocomplete="off" value="gpt-5.5">
+        </label>
+        <button type="submit">Сохранить</button>
+      </form>
+      <p id="status" class="status" role="status"></p>
+      <p class="note">Ключ хранится локально в хранилище расширения и используется только service worker для запроса к OpenAI API.</p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

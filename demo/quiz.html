@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>Демо теста</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 32px;
+        color: #24130f;
+        background: #fff4ec;
+      }
+
+      main {
+        max-width: 760px;
+      }
+
+      .que {
+        display: grid;
+        gap: 16px;
+      }
+
+      .qtext {
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .answer {
+        display: grid;
+        gap: 10px;
+      }
+
+      label {
+        display: block;
+        padding: 12px;
+        border: 1px solid #ffc4aa;
+        border-radius: 8px;
+        background: #fffaf6;
+      }
+
+      button {
+        justify-self: start;
+        min-height: 40px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 16px;
+        background: #d32519;
+        color: #fff;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Методы решения проблем в информатике</h1>
+      <form class="quiz" action="/demo-submit">
+        <section class="que" data-demo-question>
+          <div class="qtext">
+            Какой подход обычно применяют для поиска кратчайшего пути в графе с неотрицательными весами рёбер?
+          </div>
+          <div class="answer">
+            <label><input type="radio" name="q1"> Полный перебор всех перестановок вершин</label>
+            <label><input type="radio" name="q1"> Алгоритм Дейкстры</label>
+            <label><input type="radio" name="q1"> Сортировка пузырьком</label>
+            <label><input type="radio" name="q1"> Метод половинного деления</label>
+          </div>
+          <button type="button" data-demo-next>Далее</button>
+        </section>
+
+        <section class="que" data-demo-question hidden>
+          <div class="qtext">
+            Какая структура данных работает по принципу LIFO?
+          </div>
+          <div class="answer">
+            <label><input type="radio" name="q2"> Очередь</label>
+            <label><input type="radio" name="q2"> Стек</label>
+            <label><input type="radio" name="q2"> Хеш-таблица</label>
+            <label><input type="radio" name="q2"> Дерево поиска</label>
+          </div>
+          <button type="button" data-demo-next>Далее</button>
+        </section>
+
+        <section class="que" data-demo-question hidden>
+          <div class="qtext">
+            Какой алгоритм обычно используют для сортировки небольших почти отсортированных массивов?
+          </div>
+          <div class="answer">
+            <label><input type="radio" name="q3"> Сортировка вставками</label>
+            <label><input type="radio" name="q3"> Поиск в ширину</label>
+            <label><input type="radio" name="q3"> Алгоритм Прима</label>
+            <label><input type="radio" name="q3"> Бинарный поиск</label>
+          </div>
+          <button type="button" data-demo-next>Завершить</button>
+        </section>
+      </form>
+    </main>
+    <script>
+      const questions = Array.from(document.querySelectorAll("[data-demo-question]"));
+
+      document.addEventListener("click", (event) => {
+        if (!event.target.matches("[data-demo-next]")) {
+          return;
+        }
+
+        const currentIndex = questions.findIndex((question) => !question.hidden);
+        if (currentIndex === -1) {
+          return;
+        }
+
+        questions[currentIndex].hidden = true;
+        const nextQuestion = questions[currentIndex + 1];
+        if (nextQuestion) {
+          nextQuestion.hidden = false;
+        } else {
+          questions[0].hidden = false;
+        }
+      });
+    </script>
+  </body>
+</html>
