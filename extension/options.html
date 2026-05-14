@@ -19,13 +19,29 @@
         </label>
         <label>
           Модель
-          <input id="model" name="model" type="text" autocomplete="off" value="gpt-5.5">
+          <input id="model" name="model" type="text" autocomplete="off" value="gpt-5.4-mini">
+        </label>
+        <label class="checkbox-label">
+          <input id="economyMode" name="economyMode" type="checkbox" checked>
+          <span>Экономный режим: использовать gpt-5.4-nano, не отправлять скриншот без необходимости и блокировать повторы на той же странице</span>
+        </label>
+        <label>
+          URL для автовыбора
+          <textarea
+            id="autoApplyAllowedUrls"
+            name="autoApplyAllowedUrls"
+            rows="5"
+            spellcheck="false"
+            placeholder="https://example.edu/practice/*&#10;http://localhost:*/*"
+          ></textarea>
         </label>
         <button type="submit">Сохранить</button>
       </form>
       <p id="status" class="status" role="status"></p>
       <p class="note">Ключ хранится локально в хранилище расширения и используется только service worker для запроса к OpenAI API.</p>
+      <p class="note">Автовыбор выполняется только на URL, которые совпадают с одним из шаблонов выше. Один шаблон на строку, символ * означает любую часть URL.</p>
     </main>
+    <script src="shared.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

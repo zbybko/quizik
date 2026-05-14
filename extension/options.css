@@ -56,18 +56,43 @@ label {
   font-weight: 700;
 }
 
-input {
+.checkbox-label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.checkbox-label input {
+  width: 18px;
+  min-height: 18px;
+  margin: 2px 0 0;
+}
+
+input,
+textarea {
   width: 100%;
-  min-height: 42px;
   border: 1px solid #ffc4aa;
   border-radius: 8px;
   padding: 8px 10px;
   background: #fffaf6;
   color: #2b140f;
   font: inherit;
+  box-sizing: border-box;
 }
 
-input:focus {
+input {
+  min-height: 42px;
+}
+
+textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
   border-color: #f06a24;
   outline: 2px solid rgba(240, 106, 36, 0.2);
   outline-offset: 1px;
