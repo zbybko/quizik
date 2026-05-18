@@ -76,9 +76,8 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
 
   const refreshSettingsStatus = useCallback(async () => {
     try {
-      const settings = await sendRuntimeMessage<{ backendUrl?: string; hasSharedSecret?: boolean }>({ type: "QSA_GET_SETTINGS" });
+      const settings = await sendRuntimeMessage<{ backendUrl?: string }>({ type: "QSA_GET_SETTINGS" });
       if (!settings.backendUrl) setStatus(t("status.addBackend"));
-      else if (!settings.hasSharedSecret) setStatus(t("status.noSecret"));
       else setStatus(t("status.ready"));
     } catch {
       setStatus(t("status.checkSettings"));
