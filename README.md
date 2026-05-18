@@ -10,7 +10,7 @@ Features:
 
 ## Stack
 
-- Extension: Manifest V3, Vue 3 (popup), vanilla JS (content script, service worker), built with Vite
+- Extension: Manifest V3, React 18 + Tailwind CSS v4 (popup & options), vanilla JS (content script, service worker), built with Vite
 - Backend: Node 20+ (no dependencies, just `node --env-file`)
 - LLM: OpenAI Responses API (model configurable via `OPENAI_MODEL`)
 
@@ -60,7 +60,7 @@ npm run dev         # build in watch mode
 npm run check       # node --check + extractor smoke test
 ```
 
-After editing `src/popup/App.vue` or `src/options/App.vue`, rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or the `.html` / `.css` files do not need a rebuild — just reload the extension in `chrome://extensions`.
+After editing files under `src/` (React components, Tailwind CSS), rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or `.html` files do not need a rebuild — just reload the extension in `chrome://extensions`.
 
 ## Privacy
 
@@ -76,7 +76,7 @@ After editing `src/popup/App.vue` or `src/options/App.vue`, rerun `npm run build
 backend/         Node HTTP server proxying to OpenAI
 extension/       Manifest V3 extension (loaded directly by Chrome)
 extension/build/ Compiled popup/options bundles (gitignored, run npm run build)
-src/             Vue sources for popup and options
+src/             React + Tailwind sources for popup and options
 tests/           Extractor smoke test
 ```
 
