@@ -33,9 +33,11 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
    cd backend
    cp .env.example .env
    # Edit .env — at minimum set OPENAI_API_KEY and APP_SHARED_SECRET
-   npm start
+   npm start          # production (run once, no reload)
+   npm run dev        # hot reload: restarts on changes to server.mjs, locales/, config/, .env
    ```
 
+   `npm run dev` uses Node 20's built-in `--watch` flag — no nodemon required.
    The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars (no surprises if you have `OPENAI_API_KEY` exported globally).
 
 3. Load the extension:

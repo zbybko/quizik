@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "dev": "node --watch --watch-path=./server.mjs --watch-path=./locales --watch-path=./config --watch-path=./.env server.mjs",
     "check": "node --check server.mjs"
   },
   "engines": {
