@@ -8,19 +8,17 @@
   const OPTION_NUMBER_BADGE_CLASS = "qsa-option-number-badge";
   const AUTO_ADVANCE_DELAY_MS = 450;
   const AUTO_ADVANCE_AFTER_CLICK_DELAY_MS = 650;
-  const {
-    isUrlAllowedForAutoApply,
-    parseAllowedUrlPatterns
-  } = window.QuizStudyAssistantShared;
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === EXTRACT_MESSAGE_TYPE) {
+      flushLogEvents();
       extractQuizContext(document)
-        .then((payload) => sendResponse({ ok: true, result: payload }))
+        .then((payload) => sendResponse({ ok: true, result: payload, events: flushLogEvents() }))
         .catch((error) => {
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : "Не удалось прочитать страницу."
+            error: error instanceof Error ? error.message : "Не удалось прочитать страницу.",
+            events: flushLogEvents()
           });
         });
 
@@ -28,16 +26,15 @@
     }
 
     if (message?.type === APPLY_DEMO_ANSWER_MESSAGE_TYPE) {
-      applyDemoAnswer(
-        message.payload?.answer || "",
-        message.payload?.autoApplyAllowedUrls || ""
-      )
-        .then((result) => sendResponse({ ok: true, result }))
+      flushLogEvents();
+      applyDemoAnswer(message.payload?.answer || "")
+        .then((result) => sendResponse({ ok: true, result, events: flushLogEvents() }))
         .catch((error) => {
           sendResponse({
             ok: false,
             error: error instanceof Error ? error.message : "Не удалось выбрать ответ в демо.",
-            diagnostics: error?.diagnostics || null
+            diagnostics: error?.diagnostics || null,
+            events: flushLogEvents()
           });
         });
 
@@ -45,13 +42,15 @@
     }
 
     if (message?.type === SHOW_OPTION_NUMBERS_MESSAGE_TYPE) {
+      flushLogEvents();
       try {
         const result = showOptionNumberBadges();
-        sendResponse({ ok: true, result });
+        sendResponse({ ok: true, result, events: flushLogEvents() });
       } catch (error) {
         sendResponse({
           ok: false,
-          error: error instanceof Error ? error.message : "Не удалось пронумеровать варианты."
+          error: error instanceof Error ? error.message : "Не удалось пронумеровать варианты.",
+          events: flushLogEvents()
         });
       }
 
@@ -60,7 +59,7 @@
 
     if (message?.type === CLEAR_OPTION_NUMBERS_MESSAGE_TYPE) {
       clearOptionNumberBadges();
-      sendResponse({ ok: true, result: { cleared: true } });
+      sendResponse({ ok: true, result: { cleared: true }, events: flushLogEvents() });
       return false;
     }
 
@@ -639,8 +638,8 @@
     return doc.title || "";
   }
 
-  async function applyDemoAnswer(answer, allowedUrls = "") {
-    const diagnostics = createAutoApplyDiagnostics(answer, allowedUrls);
+  async function applyDemoAnswer(answer) {
+    const diagnostics = createAutoApplyDiagnostics(answer);
     const answerText = cleanAnswer(answer);
     diagnostics.cleanAnswer = answerText;
     debugLog("auto-apply requested", {
@@ -652,15 +651,6 @@
     if (!answerText) {
       debugWarn("auto-apply aborted: empty answer", { rawAnswer: answer });
       throw createAutoApplyError("Нет ответа для выбора.", diagnostics);
-    }
-
-    if (!isUrlAllowedForAutoApply(document.location.href, allowedUrls)) {
-      diagnostics.failureReason = "url-not-allowed";
-      debugWarn("auto-apply blocked by allowlist", {
-        pageUrl: document.location.href,
-        allowedPatterns: parseAllowedUrlPatterns(allowedUrls)
-      });
-      throw createAutoApplyError("Автовыбор запрещён для этого URL.", diagnostics);
     }
 
     const questionRoot = findQuestionRoot(document);
@@ -1347,7 +1337,6 @@
       count: diagnostics.advance.candidates.length,
       candidates: diagnostics.advance.candidates
     });
-    console.table(diagnostics.advance.candidates);
 
     const nextControl = navigationCandidates.find((candidate) => candidate.isSafeNext) || null;
     if (!nextControl) {
@@ -1482,7 +1471,13 @@
   }
 
   function didQuestionOrUrlChange(beforeUrl, beforeSignature, afterUrl, afterSignature) {
-    return Boolean(beforeUrl && afterUrl && beforeUrl !== afterUrl);
+    if (beforeUrl && afterUrl && beforeUrl !== afterUrl) {
+      return true;
+    }
+    if (beforeSignature && afterSignature && beforeSignature !== afterSignature) {
+      return true;
+    }
+    return false;
   }
 
   function isDangerousNavigationText(text) {
@@ -1925,17 +1920,6 @@
       diagnostics.bestScore = bestScore;
       diagnostics.candidates = candidates.map(formatCandidateForLog);
     }
-    console.table(candidates.map((candidate) => ({
-      index: candidate.index + 1,
-      score: candidate.score ?? "",
-      reason: candidate.matchReason || "",
-      text: candidate.text || "",
-      matchText: candidate.matchText || "",
-      normalizedOption: candidate.normalizedOption || "",
-      images: candidate.imageSources.join(" | "),
-      input: candidate.inputDetails?.selector || "",
-      optionRoot: candidate.optionRoot?.selector || ""
-    })));
     return [];
   }
 
@@ -2023,12 +2007,11 @@
     };
   }
 
-  function createAutoApplyDiagnostics(answer, allowedUrls) {
+  function createAutoApplyDiagnostics(answer) {
     return {
       pageUrl: document.location.href,
       rawAnswer: answer,
       cleanAnswer: "",
-      allowedPatterns: parseAllowedUrlPatterns(allowedUrls),
       normalizedAnswer: "",
       parsedAnswerNumbers: [],
       candidateCount: 0,
@@ -2162,12 +2145,18 @@
     return cleanText(value).slice(0, MAX_TEXT_LENGTH);
   }
 
+  const __qsaLogBuffer = [];
+
   function debugLog(message, details) {
-    console.debug(LOG_PREFIX, message, details || "");
+    __qsaLogBuffer.push({ level: "log", source: LOG_PREFIX, message, details: details ?? null });
   }
 
   function debugWarn(message, details) {
-    console.warn(LOG_PREFIX, message, details || "");
+    __qsaLogBuffer.push({ level: "warn", source: LOG_PREFIX, message, details: details ?? null });
+  }
+
+  function flushLogEvents() {
+    return __qsaLogBuffer.splice(0);
   }
 
   function cssEscape(value) {

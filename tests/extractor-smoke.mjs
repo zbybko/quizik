@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { Script, createContext } from "node:vm";
 
 const html = await readFile(join("demo", "quiz.html"), "utf8");
-const sharedScript = await readFile(join("extension", "shared.js"), "utf8");
 const contentScript = await readFile(join("extension", "content.js"), "utf8");
 
 class Element {
@@ -37,7 +36,6 @@ context.window.window = context.window;
 context.window.document = fixture.document;
 context.globalThis = context.window;
 
-new Script(sharedScript).runInContext(context);
 new Script(contentScript).runInContext(context);
 const result = await context.window.QuizStudyAssistantExtractor.extractQuizContext(fixture.document);
 

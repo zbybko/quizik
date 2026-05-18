@@ -1,33 +1,86 @@
 # Quiz Study Assistant
 
-Chrome/Chromium Manifest V3 extension that provides learning hints or direct answers for visible quiz questions. It can attach a screenshot of the visible tab so image-based questions can be understood. Optional answer auto-selection is limited to explicitly allowed URLs and does not submit forms.
+Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz page. It extracts the visible question + options, takes a screenshot of the current tab, and asks an LLM via your own backend.
 
-## Install locally
+Features:
+- Chat interface with multi-turn history, markdown rendering, and three suggested prompts on empty state
+- **«Ответ сразу»** mode returns only the answer text
+- **«Авто-режим»** auto-selects the answer on the page and clicks "Next", looping through the whole quiz
+- All OpenAI traffic goes through your local backend — no API key is stored in the browser
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Click **Load unpacked** and select the `extension` folder.
-4. Open the extension options and paste your OpenAI API key.
-5. Open a quiz page or `demo/quiz.html`, then click the extension icon.
-6. Choose **Подсказка** for guided reasoning or **Ответ сразу** for a direct answer.
-7. To allow auto-selection on a training page, add its URL pattern in options, then enable **Автовыбор на разрешённых URL** in the popup.
+## Stack
 
-## Privacy and safety
+- Extension: Manifest V3, Vue 3 (popup), vanilla JS (content script, service worker), built with Vite
+- Backend: Node 20+ (no dependencies, just `node --env-file`)
+- LLM: OpenAI Responses API (model configurable via `OPENAI_MODEL`)
 
-- The content script extracts only visible text from the current page.
-- When a hint or answer is requested, the extension also captures the visible area of the current tab and sends it to OpenAI with the extracted text.
-- Password fields, hidden elements, scripts, styles, cookies, and browser storage are not read by the extractor.
-- The OpenAI API key is stored in `chrome.storage.local` and is used only by the extension service worker.
-- The hint mode prompt instructs the model to explain concepts without choosing or ranking answers.
-- The answer mode prompt asks for only the direct answer.
-- Auto-selection is blocked unless the current page URL matches an allowlist pattern stored in extension settings. It selects a matching radio or checkbox option, and only advances demo pages that expose a `[data-demo-next]` button.
+## Setup
 
-## Development checks
+1. Build the Vue popup and options UI:
+
+   ```sh
+   npm install
+   npm run build
+   ```
+
+2. Configure and start the backend:
+
+   ```sh
+   cd backend
+   cp .env.example .env
+   # Edit .env — set OPENAI_API_KEY and APP_SHARED_SECRET
+   npm start
+   ```
+
+   The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars.
+
+3. Load the extension:
+   - Open `chrome://extensions`
+   - Enable **Developer mode**
+   - Click **Load unpacked** and select the `extension/` folder
+
+4. Right-click the extension icon → **Options** → set:
+   - Backend URL (default `http://localhost:8787`)
+   - The same `APP_SHARED_SECRET` you put in `.env`
+
+5. Open a quiz page, click the extension icon, and start chatting.
+
+## Backend routes
+
+- `GET /health` — liveness check
+- `POST /ai/hint` — accepts `{ mode, screenshotDataUrl, history, userText, question, options, ... }` and returns `{ result: { hint, detected } }`
+
+When `APP_SHARED_SECRET` is set, requests must include `Authorization: Bearer <secret>`.
+
+## Development
 
 ```sh
-node --check extension/background.js
-node --check extension/content.js
-node --check extension/popup.js
-node --check extension/options.js
-node tests/extractor-smoke.mjs
+npm run build       # build popup/options (Vite)
+npm run dev         # build in watch mode
+npm run check       # node --check + extractor smoke test
 ```
+
+After editing `src/popup/App.vue` or `src/options/App.vue`, rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or the `.html` / `.css` files do not need a rebuild — just reload the extension in `chrome://extensions`.
+
+## Privacy
+
+- The content script extracts only visible text. Password fields, hidden elements, scripts, styles, cookies, and browser storage are ignored.
+- Each request sends the visible-tab screenshot, extracted text, and the chat history to **your** backend.
+- The OpenAI API key lives only on the backend (`OPENAI_API_KEY` env var).
+- The shared secret in `chrome.storage.local` is an MVP — replace with real auth before any public use.
+- Auto-mode selects radios/checkboxes and clicks "next" buttons. It does **not** click "finish" / "submit all" / "сдать" / "завершить" controls (see `isDangerousNavigationText` in `extension/content.js`).
+
+## Project layout
+
+```
+backend/         Node HTTP server proxying to OpenAI
+extension/       Manifest V3 extension (loaded directly by Chrome)
+extension/build/ Compiled popup/options bundles (gitignored, run npm run build)
+src/             Vue sources for popup and options
+demo/            Local quiz HTML for testing
+tests/           Extractor smoke test
+```
+
+## Notes for contributors
+
+See [AGENTS.md](./AGENTS.md). TL;DR: all logs must go through the popup console — content/background scripts attach diagnostics to the message payload, popup prints them. Page DevTools and the service-worker console stay clean.

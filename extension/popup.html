@@ -7,41 +7,7 @@
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
-    <main class="popup">
-      <header class="header">
-        <img class="app-icon" src="icons/icon-48.png" alt="">
-        <div>
-          <h1>Подсказка к тесту</h1>
-          <p id="status" class="status">Готово</p>
-        </div>
-        <button id="openOptions" class="icon-button" type="button" title="Настройки" aria-label="Настройки">⚙</button>
-      </header>
-
-      <section id="detected" class="detected" hidden></section>
-
-      <div class="mode-control" role="radiogroup" aria-label="Режим ответа">
-        <label>
-          <input type="radio" name="mode" value="hint" checked>
-          <span>Подсказка</span>
-        </label>
-        <label>
-          <input type="radio" name="mode" value="answer">
-          <span>Ответ сразу</span>
-        </label>
-      </div>
-
-      <label class="training-control">
-        <input id="demoAutoApply" type="checkbox">
-        <span>Автовыбор на разрешённых URL</span>
-      </label>
-
-      <button id="getHint" class="primary" type="button">Получить подсказку</button>
-
-      <section id="hint" class="hint" aria-live="polite">
-        <p class="empty">Откройте страницу теста и выберите режим запроса.</p>
-      </section>
-    </main>
-    <script src="shared.js"></script>
-    <script src="popup.js"></script>
+    <div id="app"></div>
+    <script type="module" src="build/popup.js"></script>
   </body>
 </html>
