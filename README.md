@@ -77,7 +77,6 @@ backend/         Node HTTP server proxying to OpenAI
 extension/       Manifest V3 extension (loaded directly by Chrome)
 extension/build/ Compiled popup/options bundles (gitignored, run npm run build)
 src/             Vue sources for popup and options
-demo/            Local quiz HTML for testing
 tests/           Extractor smoke test
 ```
 

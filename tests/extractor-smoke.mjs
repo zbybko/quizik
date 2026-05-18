@@ -2,8 +2,19 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Script, createContext } from "node:vm";
 
-const html = await readFile(join("demo", "quiz.html"), "utf8");
 const contentScript = await readFile(join("extension", "content.js"), "utf8");
+
+const minimalFixtureData = {
+  title: "Демо теста",
+  subject: "Методы решения проблем в информатике",
+  question: "Какой подход обычно применяют для поиска кратчайшего пути в графе с неотрицательными весами рёбер?",
+  options: [
+    "Полный перебор всех перестановок вершин",
+    "Алгоритм Дейкстры",
+    "Сортировка пузырьком",
+    "Метод половинного деления"
+  ]
+};
 
 class Element {
   constructor(tagName, attributes = {}, text = "") {
@@ -15,7 +26,7 @@ class Element {
   }
 }
 
-const fixture = buildMinimalFixture(html);
+const fixture = buildMinimalFixture(minimalFixtureData);
 const context = createContext({
   chrome: { runtime: { onMessage: { addListener() {} } } },
   window: {
@@ -67,24 +78,16 @@ assert(audioResult.audioSources[0].src === "https://example.test/audio/c1-q31.mp
 
 console.log("extractor smoke test passed");
 
-function buildMinimalFixture(sourceHtml) {
-  const title = matchText(sourceHtml, /<title>([\s\S]*?)<\/title>/i);
-  const subject = matchText(sourceHtml, /<h1>([\s\S]*?)<\/h1>/i);
-  const firstQuestionSection = sourceHtml.match(/<section class="que"[\s\S]*?<\/section>/i)?.[0] || sourceHtml;
-  const question = matchText(firstQuestionSection, /<div class="qtext">([\s\S]*?)<\/div>/i);
-  const labels = [...firstQuestionSection.matchAll(/<label>([\s\S]*?)<\/label>/gi)].map((match) =>
-    stripTags(match[1])
-  );
-
+function buildMinimalFixture({ title, subject, question, options }) {
   const body = new Element("body");
   const main = append(body, new Element("main"));
   append(main, new Element("h1", {}, subject));
-  const form = append(main, new Element("form", { class: "quiz", action: "/demo-submit" }));
+  const form = append(main, new Element("form", { class: "quiz", action: "/quiz-submit" }));
   const section = append(form, new Element("section", { class: "que" }));
   append(section, new Element("div", { class: "qtext" }, question));
   const answer = append(section, new Element("div", { class: "answer" }));
 
-  labels.forEach((labelText) => {
+  options.forEach((labelText) => {
     const label = append(answer, new Element("label", {}, labelText));
     append(label, new Element("input", { type: "radio", name: "q1" }));
   });
@@ -338,14 +341,6 @@ function matches(element, selector) {
 
 function hasClass(element, className) {
   return String(element.attributes.class || "").split(/\s+/).includes(className);
-}
-
-function matchText(value, pattern) {
-  return stripTags(value.match(pattern)?.[1] || "");
-}
-
-function stripTags(value) {
-  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function assert(condition, message) {

@@ -1400,7 +1400,6 @@
 
   function collectNavigationCandidates(doc) {
     const elements = Array.from(doc.querySelectorAll([
-      "[data-demo-next]",
       "button",
       "input[type='button']",
       "input[type='submit']",
@@ -1424,7 +1423,7 @@
           tagName: element.tagName,
           type: element.getAttribute?.("type") || "",
           isDangerous: isDangerousNavigationText(text),
-          isNextLike: isNextLikeNavigationText(text) || element.hasAttribute?.("data-demo-next")
+          isNextLike: isNextLikeNavigationText(text)
         };
       })
       .map((candidate) => ({
