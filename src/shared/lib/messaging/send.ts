@@ -1,18 +1,9 @@
-import type { ForwardedEvent, RuntimeResponse } from "./types";
+import type { RuntimeResponse } from "@shared/api";
+import { TAB_MESSAGE_RETRIES, TAB_MESSAGE_RETRY_DELAY_MS } from "@shared/config";
+import { printForwardedEvents } from "./print-events";
 
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export function printForwardedEvents(messageType: string | undefined, response: { events?: ForwardedEvent[] } | undefined): void {
-  if (!response || !Array.isArray(response.events) || response.events.length === 0) return;
-  const label = `[QSA forwarded] ${messageType} (${response.events.length})`;
-  console.groupCollapsed(label);
-  for (const event of response.events) {
-    const logger = event.level === "warn" ? console.warn : console.log;
-    logger(event.source || "[QSA]", event.message, event.details ?? "");
-  }
-  console.groupEnd();
 }
 
 interface NoReceiverError extends Error {
@@ -42,12 +33,19 @@ export function sendTabMessageOnce<T = unknown>(tabId: number, message: unknown)
   });
 }
 
+export interface SendTabOptions {
+  retries?: number;
+  retryDelayMs?: number;
+}
+
 export async function sendTabMessage<T = unknown>(
   tabId: number,
   message: unknown,
-  { retries = 6, retryDelayMs = 500 }: { retries?: number; retryDelayMs?: number } = {},
+  options: SendTabOptions = {},
   onGiveUp?: () => Error
 ): Promise<T> {
+  const retries = options.retries ?? TAB_MESSAGE_RETRIES;
+  const retryDelayMs = options.retryDelayMs ?? TAB_MESSAGE_RETRY_DELAY_MS;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
       return await sendTabMessageOnce<T>(tabId, message);
@@ -71,29 +69,6 @@ export function sendRuntimeMessage<T = unknown>(message: unknown): Promise<T> {
       printForwardedEvents((message as { type?: string })?.type, response);
       if (!response?.ok) { reject(new Error(response?.error || "Request failed.")); return; }
       resolve(response.result);
-    });
-  });
-}
-
-export async function getTargetTab(standaloneTargetTabId: number | null): Promise<chrome.tabs.Tab | null> {
-  if (standaloneTargetTabId !== null && Number.isInteger(standaloneTargetTabId) && standaloneTargetTabId > 0) {
-    return chrome.tabs.get(standaloneTargetTabId);
-  }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab || null;
-}
-
-export function captureTabScreenshot(
-  tab: chrome.tabs.Tab | null,
-  errorWindow: string,
-  errorFailed: (msg: string) => string
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!tab?.windowId) { reject(new Error(errorWindow)); return; }
-    chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 80 }, (dataUrl: string) => {
-      const error = chrome.runtime.lastError;
-      if (error) { reject(new Error(errorFailed(error.message || ""))); return; }
-      resolve(dataUrl || "");
     });
   });
 }

@@ -111,9 +111,33 @@ backend/             Node HTTP server (AI proxy + locale tree)
 backend/locales/     {en,es,zh,hi,ar,ru,uk}.json — UI translations
 extension/           Manifest V3 extension (loaded directly by Chrome)
 extension/build/     Compiled app.{js,css} (gitignored — run `npm run build`)
-src/app/             Unified React + TypeScript app (Chat + Settings + drawer)
-src/i18n/            i18next setup with typed locales and bundled en fallback
 tests/               Extractor smoke test (no Chrome required)
+
+src/                 Frontend in Feature-Sliced Design layout
+src/app/             Entry point + root App (decides chat vs settings view)
+src/pages/           Page compositions
+   chat/               Popup chat page (header + messages + composer)
+   settings/           Settings page (drawer-mode + standalone-mode)
+src/features/        User actions
+   auto-loop/          useChatLoop hook — conversation state + auto-mode loop
+   chat-composer/      Composer textarea + suggestion chips
+   mode-toggles/       "Answer only" / "Auto mode" pills
+   language-switch/    UI language picker
+   backend-config/     Backend URL + shared secret form
+src/entities/        Business entities
+   message/            ChatMessage type, MessageBubble, TypingIndicator
+   locale/             SupportedLocale, language names, bundled en fallback
+   tab-context/        chrome.tabs helpers + extracted-question / hint types
+src/shared/          Reusable plumbing (no business logic)
+   api/                RuntimeResponse, ForwardedEvent types
+   config/             Constants (AUTO_LOOP_DELAY_MS, DEFAULT_BACKEND_URL, ...)
+   lib/i18n/           initI18n, setLocale (uses entities/locale)
+   lib/markdown/       renderMarkdown (marked + DOMPurify)
+   lib/messaging/      sendTabMessage, sendRuntimeMessage, retry logic
+   lib/storage/        Promise wrappers around chrome.storage.local
+
+Path aliases (tsconfig + vite): @app, @pages, @features, @entities, @shared.
+Imports flow downward through layers — pages → features → entities → shared.
 ```
 
 ## License
