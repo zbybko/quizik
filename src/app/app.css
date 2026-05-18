@@ -67,6 +67,18 @@
 }
 .animate-in { animation: qsa-slide-in 0.18s ease-out; }
 
+/* Allow long words / unbreakable strings to wrap inside flex/grid descendants.
+   Without this, a single long word forces overflow:hidden parents to clip. */
+.markdown,
+.markdown p,
+.markdown li,
+.markdown code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.markdown pre { white-space: pre; }
+.markdown pre code { overflow-wrap: normal; word-break: normal; }
+
 /* Markdown rendering */
 .markdown { font-size: 14px; line-height: 1.6; word-wrap: break-word; }
 .markdown > *:first-child { margin-top: 0; }

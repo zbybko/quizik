@@ -58,7 +58,7 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
   }, [detected, t]);
 
   return (
-    <main className="grid grid-rows-[auto_auto_1fr_auto] flex-1 min-h-0">
+    <main className="grid grid-rows-[auto_auto_1fr_auto] flex-1 min-h-0 min-w-0">
       <header className="flex items-center gap-2.5 px-3.5 py-3 border-b border-line bg-surface">
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <img src={iconUrl} alt="" className="w-7 h-7 rounded-md bg-accent-soft p-[3px] object-contain" />
@@ -77,18 +77,18 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
       </header>
 
       {detectedText && (
-        <section className="flex items-center gap-2 px-3.5 py-1.5 border-b border-line bg-surface-soft text-[11px] text-ink-2">
+        <section className="flex items-center gap-2 min-w-0 overflow-hidden px-3.5 py-1.5 border-b border-line bg-surface-soft text-[11px] text-ink-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
-          <span className="truncate">{detectedText}</span>
+          <span className="truncate min-w-0 flex-1">{detectedText}</span>
         </section>
       )}
 
       <section
         ref={messagesRef}
-        className="flex flex-col overflow-y-auto min-h-0 px-3.5 py-4 qsa-scroll"
+        className="flex flex-col overflow-y-auto overflow-x-hidden min-h-0 min-w-0 px-3.5 py-4 qsa-scroll"
         aria-live="polite"
       >
-        <div className="flex flex-col gap-3.5 mt-auto">
+        <div className="flex flex-col gap-3.5 mt-auto min-w-0">
           {messages.map((msg, i) => (
             <MessageBubble key={i} message={msg} assistantLabel={t("chat.assistant")} />
           ))}
