@@ -15,7 +15,7 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 
 - **Extension** — Manifest V3, React 19 + TypeScript + Tailwind CSS v4, vanilla JS content / service-worker scripts, built with Vite.
   - One bundle (`extension/build/app.js`) shared by the popup and the options page.
-- **Backend** — Node 20+, zero external dependencies, serves both AI requests and the locale tree.
+- **Backend** — Cloudflare Worker (TypeScript). Bundled locale JSONs and navigation config. Edge-deployed worldwide. Local dev via `wrangler dev` (runs the real Workers runtime locally).
 - **LLM** — OpenAI Responses API. Model configurable via `OPENAI_MODEL`.
 
 ## Setup
@@ -27,18 +27,29 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
    npm run build
    ```
 
-2. Configure and start the backend:
+2. Backend — Cloudflare Worker:
+
+   **Local dev** (uses `wrangler dev`, reads `backend/.env` for secrets):
 
    ```sh
    cd backend
    cp .env.example .env
-   # Edit .env — at minimum set OPENAI_API_KEY and APP_SHARED_SECRET
-   npm start          # production (run once, no reload)
-   npm run dev        # hot reload: restarts on changes to server.mjs, locales/, config/, .env
+   # Edit .env — put OPENAI_API_KEY and APP_SHARED_SECRET
+   npm install
+   npm run dev        # starts http://localhost:8787 with hot reload
    ```
 
-   `npm run dev` uses Node 20's built-in `--watch` flag — no nodemon required.
-   The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars (no surprises if you have `OPENAI_API_KEY` exported globally).
+   **Production deploy** (Cloudflare Workers, free tier covers ~100k req/day):
+
+   ```sh
+   cd backend
+   npx wrangler login                # one-time
+   npm run secret:openai             # paste OPENAI_API_KEY when prompted
+   npm run secret:app                # paste APP_SHARED_SECRET when prompted
+   npm run deploy                    # uploads + prints the live URL
+   ```
+
+   The worker name and URL are set in `backend/wrangler.jsonc`. By default the live URL is `https://quizik-backend.<your-account>.workers.dev`.
 
 3. Load the extension:
    - Open `chrome://extensions`
@@ -64,16 +75,15 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 
 When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <secret>`. The `/i18n/*` endpoints are public so the extension can warm them before auth flows exist.
 
-## Backend env
+## Backend env / secrets
 
-| Var | Default | Purpose |
-|---|---|---|
-| `OPENAI_API_KEY` | _(required)_ | OpenAI key. |
-| `OPENAI_MODEL` | `gpt-5.5` | Override model name. |
-| `PORT` | `8787` | Listen port. |
-| `APP_SHARED_SECRET` | `""` | If set, required as Bearer token on `/ai/hint`. |
-| `LOCALE_WORKER_URL` | _(unset)_ | If set, backend proxies `GET /i18n/:locale` to `${LOCALE_WORKER_URL}/${locale}.json` (POEditor-style remote worker). Otherwise it reads `backend/locales/*.json` from disk. |
-| `LOCALE_CACHE_TTL_MS` | `300000` | In-memory locale cache TTL (5 min). |
+| Var | Default | Purpose | How to set |
+|---|---|---|---|
+| `OPENAI_API_KEY` | _(required)_ | OpenAI key. | Local: `backend/.env`. Prod: `npm run secret:openai` |
+| `OPENAI_MODEL` | `gpt-5.5` | Override model name. | `vars` in `backend/wrangler.jsonc` |
+| `APP_SHARED_SECRET` | _(optional)_ | If set, required as `Authorization: Bearer <secret>` on `/ai/hint`. | Local: `backend/.env`. Prod: `npm run secret:app` |
+
+Locale JSONs (`src/locales/*.json`) and navigation markers (`src/config/navigation.json`) are bundled into the worker at build time — changes require `npm run deploy`. KV/R2 binding can be added later for live updates without redeploy.
 
 ## Development
 
@@ -113,9 +123,11 @@ This means edits to the chat or settings UI compile to one file and there's no d
 ## Project layout
 
 ```
-backend/             Node HTTP server (AI proxy + locale tree + nav-marker config)
-backend/locales/     {en,es,zh,hi,ar,ru,uk}.json — UI translations
-backend/config/      navigation.json — multilingual "next" / "finish" / "back" markers
+backend/             Cloudflare Worker (AI proxy + locale tree + nav-marker config)
+backend/src/         TypeScript Worker entry (src/index.ts)
+backend/src/locales/ {en,es,zh,hi,ar,ru,uk}.json — UI translations
+backend/src/config/  navigation.json — multilingual "next" / "finish" / "back" markers
+backend/wrangler.jsonc  Worker config (name, bindings, vars)
 extension/           Manifest V3 extension (loaded directly by Chrome)
 extension/build/     Compiled app.{js,css} (gitignored — run `npm run build`)
 tests/               Extractor smoke test (no Chrome required)

@@ -1,14 +1,20 @@
 {
-  "name": "quiz-study-assistant-backend",
+  "name": "quizik-backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.mjs",
-    "dev": "node --watch --watch-path=./server.mjs --watch-path=./locales --watch-path=./config --watch-path=./.env server.mjs",
-    "check": "node --check server.mjs"
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit",
+    "logs": "wrangler tail",
+    "secret:openai": "wrangler secret put OPENAI_API_KEY",
+    "secret:app": "wrangler secret put APP_SHARED_SECRET"
   },
-  "engines": {
-    "node": ">=20"
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250501.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.92.0"
   }
 }
