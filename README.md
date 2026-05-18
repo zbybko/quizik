@@ -1,22 +1,26 @@
 # Quizik
 
-Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz page. It extracts the visible question + options, takes a screenshot of the current tab, and asks an LLM via your own backend.
+A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz page. It extracts the visible question and options, captures a screenshot of the current tab, and asks an LLM via your own backend.
 
-Features:
-- Chat interface with multi-turn history, markdown rendering, and three suggested prompts on empty state
-- **«Ответ сразу»** mode returns only the answer text
-- **«Авто-режим»** auto-selects the answer on the page and clicks "Next", looping through the whole quiz
-- All OpenAI traffic goes through your local backend — no API key is stored in the browser
+## Features
+
+- **Chat UI** — multi-turn conversation with the assistant. Markdown rendering (headings, lists, code, tables, links). Three suggested prompts on empty state.
+- **Answer-only mode** — returns just the answer text, nothing else.
+- **Auto mode** — picks the answer on the page and clicks the "next" button, looping through the whole quiz until the assistant or the page runs out.
+- **Multilingual** — UI ships in 7 locales (English, Español, 中文, हिन्दी, العربية, Русский, Українська). Picks up the browser language automatically; manual switcher in settings. RTL for Arabic.
+- **Translation tree served by backend** — JSON locale files live in `backend/locales/` and are served via `GET /i18n/:locale`. Optionally swap to a remote POEditor-style worker via `LOCALE_WORKER_URL`.
+- **No browser-side OpenAI key** — all model traffic goes through your local backend. Only a shared secret lives in `chrome.storage.local`.
 
 ## Stack
 
-- Extension: Manifest V3, React 18 + Tailwind CSS v4 (popup & options), vanilla JS (content script, service worker), built with Vite
-- Backend: Node 20+ (no dependencies, just `node --env-file`)
-- LLM: OpenAI Responses API (model configurable via `OPENAI_MODEL`)
+- **Extension** — Manifest V3, React 19 + TypeScript + Tailwind CSS v4, vanilla JS content / service-worker scripts, built with Vite.
+  - One bundle (`extension/build/app.js`) shared by the popup and the options page.
+- **Backend** — Node 20+, zero external dependencies, serves both AI requests and the locale tree.
+- **LLM** — OpenAI Responses API. Model configurable via `OPENAI_MODEL`.
 
 ## Setup
 
-1. Build the Vue popup and options UI:
+1. Install dependencies and build the bundle:
 
    ```sh
    npm install
@@ -28,58 +32,90 @@ Features:
    ```sh
    cd backend
    cp .env.example .env
-   # Edit .env — set OPENAI_API_KEY and APP_SHARED_SECRET
+   # Edit .env — at minimum set OPENAI_API_KEY and APP_SHARED_SECRET
    npm start
    ```
 
-   The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars.
+   The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars (no surprises if you have `OPENAI_API_KEY` exported globally).
 
 3. Load the extension:
    - Open `chrome://extensions`
    - Enable **Developer mode**
-   - Click **Load unpacked** and select the `extension/` folder
+   - **Load unpacked** → select the `extension/` folder
 
-4. Right-click the extension icon → **Options** → set:
+4. Open the settings (click the gear icon in the popup, or right-click the toolbar icon → **Options**) and set:
    - Backend URL (default `http://localhost:8787`)
    - The same `APP_SHARED_SECRET` you put in `.env`
+   - Optional: pick a different UI language
 
-5. Open a quiz page, click the extension icon, and start chatting.
+5. Open a quiz page → click the extension icon → start chatting.
 
 ## Backend routes
 
-- `GET /health` — liveness check
-- `POST /ai/hint` — accepts `{ mode, screenshotDataUrl, history, userText, question, options, ... }` and returns `{ result: { hint, detected } }`
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness check. |
+| `GET` | `/i18n/locales` | Returns `{ locales: [...], default: "en" }`. |
+| `GET` | `/i18n/:locale` | Returns `{ locale, tree }`. Falls back to `en` for unsupported locales. |
+| `POST` | `/ai/hint` | AI chat. Body: `{ mode, screenshotDataUrl, history, userText, question, options, ... }`. Returns `{ result: { hint, detected } }`. |
 
-When `APP_SHARED_SECRET` is set, requests must include `Authorization: Bearer <secret>`.
+When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <secret>`. The `/i18n/*` endpoints are public so the extension can warm them before auth flows exist.
+
+## Backend env
+
+| Var | Default | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | _(required)_ | OpenAI key. |
+| `OPENAI_MODEL` | `gpt-5.5` | Override model name. |
+| `PORT` | `8787` | Listen port. |
+| `APP_SHARED_SECRET` | `""` | If set, required as Bearer token on `/ai/hint`. |
+| `LOCALE_WORKER_URL` | _(unset)_ | If set, backend proxies `GET /i18n/:locale` to `${LOCALE_WORKER_URL}/${locale}.json` (POEditor-style remote worker). Otherwise it reads `backend/locales/*.json` from disk. |
+| `LOCALE_CACHE_TTL_MS` | `300000` | In-memory locale cache TTL (5 min). |
 
 ## Development
 
 ```sh
-npm run build       # build popup/options (Vite)
+npm run build       # Vite build of src/app → extension/build/app.{js,css}
 npm run dev         # build in watch mode
-npm run check       # node --check + extractor smoke test
+npm run typecheck   # tsc --noEmit
+npm run check       # typecheck + node --check + extractor smoke test + backend syntax check
 ```
 
-After editing files under `src/` (React components, Tailwind CSS), rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or `.html` files do not need a rebuild — just reload the extension in `chrome://extensions`.
+Workflow rules:
+- After editing anything under `src/` → run `npm run build`, then reload the extension in `chrome://extensions`.
+- After editing `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or any `.html` → just reload (no rebuild).
+- After editing `backend/locales/*.json` → restart the backend, then in DevTools clear `chrome.storage.local` keys starting with `i18nCache:` (or wait 24h for the client-side cache to expire).
 
-## Privacy
+### Single bundle, two HTML entries
+
+`popup.html` and `options.html` both load `extension/build/app.js`. The app picks its view from `<body data-view="settings">`:
+
+- `popup.html` → no attribute → renders `<Chat />` (with a slide-in settings drawer triggered by the gear icon).
+- `options.html` → `data-view="settings"` → renders the full-page `<Settings />`.
+
+This means edits to the chat or settings UI compile to one file and there's no duplicated code.
+
+## Privacy & safety
 
 - The content script extracts only visible text. Password fields, hidden elements, scripts, styles, cookies, and browser storage are ignored.
-- Each request sends the visible-tab screenshot, extracted text, and the chat history to **your** backend.
-- The OpenAI API key lives only on the backend (`OPENAI_API_KEY` env var).
-- The shared secret in `chrome.storage.local` is an MVP — replace with real auth before any public use.
-- Auto-mode selects radios/checkboxes and clicks "next" buttons. It does **not** click "finish" / "submit all" / "сдать" / "завершить" controls (see `isDangerousNavigationText` in `extension/content.js`).
+- Each `/ai/hint` request sends the visible-tab screenshot, extracted text, and the chat history to **your** backend — nowhere else.
+- The OpenAI API key lives only on the backend (`OPENAI_API_KEY` env var); it is never in `chrome.storage` or any extension file.
+- The shared secret in `chrome.storage.local` is an MVP for single-user setups — replace with real auth before any public deployment.
+- Auto-mode selects radios/checkboxes and clicks "next" buttons by visible text (`далее`, `next`, `continue`, `сохранить и перейти`, etc.). It does **not** click "finish" / "submit all" / "сдать" / "завершить" / `submit all and finish` — see `isDangerousNavigationText` in `extension/content.js`.
+- All logs go to the popup console only — content / background scripts ship diagnostics back in the message payload. The page DevTools and service-worker console stay clean. See [AGENTS.md](./AGENTS.md).
 
 ## Project layout
 
 ```
-backend/         Node HTTP server proxying to OpenAI
-extension/       Manifest V3 extension (loaded directly by Chrome)
-extension/build/ Compiled popup/options bundles (gitignored, run npm run build)
-src/             React + Tailwind sources for popup and options
-tests/           Extractor smoke test
+backend/             Node HTTP server (AI proxy + locale tree)
+backend/locales/     {en,es,zh,hi,ar,ru,uk}.json — UI translations
+extension/           Manifest V3 extension (loaded directly by Chrome)
+extension/build/     Compiled app.{js,css} (gitignored — run `npm run build`)
+src/app/             Unified React + TypeScript app (Chat + Settings + drawer)
+src/i18n/            i18next setup with typed locales and bundled en fallback
+tests/               Extractor smoke test (no Chrome required)
 ```
 
-## Notes for contributors
+## License
 
-See [AGENTS.md](./AGENTS.md). TL;DR: all logs must go through the popup console — content/background scripts attach diagnostics to the message payload, popup prints them. Page DevTools and the service-worker console stay clean.
+MIT — see [LICENSE](./LICENSE).
