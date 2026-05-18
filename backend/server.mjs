@@ -3,13 +3,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-loadEnvFileWithOverride(path.join(path.dirname(fileURLToPath(import.meta.url)), ".env"));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+loadEnvFileWithOverride(path.join(__dirname, ".env"));
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.5";
 const MAX_JSON_BYTES = 8 * 1024 * 1024;
 const PORT = Number(process.env.PORT || 8787);
 const APP_SHARED_SECRET = process.env.APP_SHARED_SECRET || "";
+
+// i18n config
+const LOCALE_WORKER_URL = (process.env.LOCALE_WORKER_URL || "").trim().replace(/\/+$/, "");
+const LOCALE_CACHE_TTL_MS = Number(process.env.LOCALE_CACHE_TTL_MS || 5 * 60 * 1000); // 5 min
+const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar"];
+const DEFAULT_LOCALE = "en";
+const LOCALES_DIR = path.join(__dirname, "locales");
+const localeCache = new Map(); // locale -> { tree, fetchedAt }
 
 const SYSTEM_PROMPT = [
   "You are a study assistant for quizzes.",
@@ -53,6 +62,18 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === "GET" && url.pathname === "/health") {
       sendJson(response, 200, { ok: true });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/i18n/locales") {
+      sendJson(response, 200, { ok: true, result: { locales: SUPPORTED_LOCALES, default: DEFAULT_LOCALE } });
+      return;
+    }
+
+    const i18nMatch = request.method === "GET" && url.pathname.match(/^\/i18n\/([a-zA-Z-]{2,10})$/);
+    if (i18nMatch) {
+      const tree = await getLocaleTree(i18nMatch[1]);
+      sendJson(response, 200, { ok: true, result: { locale: tree.locale, tree: tree.tree } });
       return;
     }
 
@@ -316,6 +337,42 @@ function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+/**
+ * Resolve a locale tree.
+ * - If LOCALE_WORKER_URL is set, fetches `${LOCALE_WORKER_URL}/${locale}.json` (POEditor-style worker).
+ * - Otherwise reads `backend/locales/${locale}.json` from disk.
+ * - Caches each locale in memory for LOCALE_CACHE_TTL_MS.
+ * - Falls back to DEFAULT_LOCALE on miss; throws 404 only if even default is unavailable.
+ */
+async function getLocaleTree(requestedLocale) {
+  const locale = SUPPORTED_LOCALES.includes(requestedLocale) ? requestedLocale : DEFAULT_LOCALE;
+  const cached = localeCache.get(locale);
+  if (cached && Date.now() - cached.fetchedAt < LOCALE_CACHE_TTL_MS) {
+    return { locale, tree: cached.tree };
+  }
+
+  let tree;
+  try {
+    if (LOCALE_WORKER_URL) {
+      const res = await fetch(`${LOCALE_WORKER_URL}/${locale}.json`);
+      if (!res.ok) throw new Error(`worker returned ${res.status}`);
+      tree = await res.json();
+    } else {
+      const filePath = path.join(LOCALES_DIR, `${locale}.json`);
+      const raw = await fs.promises.readFile(filePath, "utf8");
+      tree = JSON.parse(raw);
+    }
+  } catch (error) {
+    if (locale !== DEFAULT_LOCALE) {
+      return getLocaleTree(DEFAULT_LOCALE);
+    }
+    throw httpError(404, `Locale ${locale} not available: ${error.message}`);
+  }
+
+  localeCache.set(locale, { tree, fetchedAt: Date.now() });
+  return { locale, tree };
 }
 
 function loadEnvFileWithOverride(envPath) {

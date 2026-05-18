@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "Quiz Study Assistant",
+    "settings": "Settings"
+  },
+  "status": {
+    "ready": "Ready",
+    "addBackend": "Add the backend URL in settings",
+    "noSecret": "Backend connected without secret",
+    "checkSettings": "Check extension settings",
+    "reading": "Reading the question and capturing a screenshot...",
+    "movingNext": "Moving to question #{{n}}...",
+    "requestingAnswer": "Requesting answer...",
+    "requestingHint": "Requesting hint...",
+    "answerReady": "Answer ready",
+    "done": "Done",
+    "error": "Error",
+    "answerSelected": "Answer selected",
+    "answerSelectedAdvanced": "Answer selected · advanced",
+    "autoStopped": "Auto mode stopped.",
+    "autoFinished": "Auto mode finished."
+  },
+  "errors": {
+    "noTab": "Could not find the active tab.",
+    "requestFailed": "Request failed.",
+    "needMessageOrAnswer": "Type a message or turn on \"Answer only\".",
+    "reloadPage": "Reload the quiz page and try again.",
+    "readPageFailed": "Failed to read the page.",
+    "autoSelectFailed": "Answer ready, but auto-select failed.",
+    "noScreenshotWindow": "Could not determine the tab window for screenshot.",
+    "screenshotFailed": "Screenshot failed: {{message}}"
+  },
+  "chat": {
+    "assistant": "Assistant",
+    "placeholder": {
+      "auto": "Auto mode: hit ↑, I'll pick answers and move on.",
+      "answer": "Hit ↑ to get just the answer. You can add a hint.",
+      "chat": "Ask about the question, request a breakdown, give me a hint..."
+    },
+    "suggestions": [
+      "Break down the current question for me",
+      "Explain the key concept in simple terms",
+      "Which options are definitely wrong, and why?"
+    ],
+    "clear": "Clear",
+    "send": "Send",
+    "userPrompt": {
+      "firstAnswer": "Give me the answer to the current question",
+      "nextAnswer": "Give me the answer to this question"
+    },
+    "modeLabel": {
+      "auto": "Auto",
+      "answer": "Answer",
+      "chat": "Chat"
+    }
+  },
+  "toggles": {
+    "answerOnly": "Answer only",
+    "answerOnlyTooltip": {
+      "on": "Turn off Answer-only",
+      "off": "Return only the answer"
+    },
+    "autoMode": "Auto mode",
+    "autoModeTooltip": {
+      "on": "Turn off auto mode",
+      "off": "Pick the answer and move to next question"
+    }
+  },
+  "detected": {
+    "pageContext": "Page context",
+    "options": "{{count}} options",
+    "screenshot": "screenshot attached"
+  },
+  "options": {
+    "title": "Settings",
+    "backendUrl": "Backend URL",
+    "sharedSecret": "APP_SHARED_SECRET",
+    "language": "Language",
+    "save": "Save",
+    "saved": "Settings saved.",
+    "note": "The extension sends the current question and a screenshot to your backend. The OpenAI API key is stored only on the backend."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "Quiz Study Assistant",
+    "settings": "Ajustes"
+  },
+  "status": {
+    "ready": "Listo",
+    "addBackend": "Añade la URL del backend en los ajustes",
+    "noSecret": "Backend conectado sin clave",
+    "checkSettings": "Revisa los ajustes de la extensión",
+    "reading": "Leyendo la pregunta y capturando pantalla...",
+    "movingNext": "Pasando a la pregunta #{{n}}...",
+    "requestingAnswer": "Solicitando respuesta...",
+    "requestingHint": "Solicitando pista...",
+    "answerReady": "Respuesta lista",
+    "done": "Listo",
+    "error": "Error",
+    "answerSelected": "Respuesta seleccionada",
+    "answerSelectedAdvanced": "Respuesta seleccionada · avanzado",
+    "autoStopped": "Modo automático detenido.",
+    "autoFinished": "Modo automático finalizado."
+  },
+  "errors": {
+    "noTab": "No se encontró la pestaña activa.",
+    "requestFailed": "La solicitud falló.",
+    "needMessageOrAnswer": "Escribe un mensaje o activa «Solo respuesta».",
+    "reloadPage": "Recarga la página del test y vuelve a intentarlo.",
+    "readPageFailed": "No se pudo leer la página.",
+    "autoSelectFailed": "Respuesta lista, pero la selección automática falló.",
+    "noScreenshotWindow": "No se pudo determinar la ventana de la pestaña para la captura.",
+    "screenshotFailed": "Captura fallida: {{message}}"
+  },
+  "chat": {
+    "assistant": "Asistente",
+    "placeholder": {
+      "auto": "Modo automático: pulsa ↑, elegiré respuestas y avanzaré.",
+      "answer": "Pulsa ↑ para obtener solo la respuesta. Puedes añadir una pista.",
+      "chat": "Pregunta sobre la cuestión, pide un desglose, dame una pista..."
+    },
+    "suggestions": [
+      "Analiza la pregunta actual",
+      "Explica el concepto clave con palabras sencillas",
+      "¿Qué opciones son definitivamente incorrectas y por qué?"
+    ],
+    "clear": "Limpiar",
+    "send": "Enviar",
+    "userPrompt": {
+      "firstAnswer": "Dame la respuesta a la pregunta actual",
+      "nextAnswer": "Dame la respuesta a esta pregunta"
+    },
+    "modeLabel": {
+      "auto": "Auto",
+      "answer": "Respuesta",
+      "chat": "Chat"
+    }
+  },
+  "toggles": {
+    "answerOnly": "Solo respuesta",
+    "answerOnlyTooltip": {
+      "on": "Desactivar Solo respuesta",
+      "off": "Devolver solo la respuesta"
+    },
+    "autoMode": "Modo automático",
+    "autoModeTooltip": {
+      "on": "Desactivar modo automático",
+      "off": "Elegir respuesta y pasar a la siguiente pregunta"
+    }
+  },
+  "detected": {
+    "pageContext": "Contexto de la página",
+    "options": "{{count}} opciones",
+    "screenshot": "captura adjunta"
+  },
+  "options": {
+    "title": "Ajustes",
+    "backendUrl": "URL del backend",
+    "sharedSecret": "APP_SHARED_SECRET",
+    "language": "Idioma",
+    "save": "Guardar",
+    "saved": "Ajustes guardados.",
+    "note": "La extensión envía la pregunta actual y una captura al backend. La clave de OpenAI se almacena solo en el backend."
+  }
+}

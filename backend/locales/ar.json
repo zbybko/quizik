@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "Quiz Study Assistant",
+    "settings": "الإعدادات"
+  },
+  "status": {
+    "ready": "جاهز",
+    "addBackend": "أضف عنوان الـ backend في الإعدادات",
+    "noSecret": "تم الاتصال بالـ backend بدون مفتاح سري",
+    "checkSettings": "تحقق من إعدادات الإضافة",
+    "reading": "أقرأ السؤال وألتقط صورة الشاشة...",
+    "movingNext": "الانتقال إلى السؤال رقم {{n}}...",
+    "requestingAnswer": "أطلب الإجابة...",
+    "requestingHint": "أطلب تلميحًا...",
+    "answerReady": "الإجابة جاهزة",
+    "done": "تم",
+    "error": "خطأ",
+    "answerSelected": "تم اختيار الإجابة",
+    "answerSelectedAdvanced": "تم اختيار الإجابة · انتقلت",
+    "autoStopped": "تم إيقاف الوضع التلقائي.",
+    "autoFinished": "اكتمل الوضع التلقائي."
+  },
+  "errors": {
+    "noTab": "تعذر العثور على علامة التبويب النشطة.",
+    "requestFailed": "فشل الطلب.",
+    "needMessageOrAnswer": "اكتب رسالة أو فعّل «الإجابة فقط».",
+    "reloadPage": "أعد تحميل صفحة الاختبار وحاول مرة أخرى.",
+    "readPageFailed": "تعذرت قراءة الصفحة.",
+    "autoSelectFailed": "الإجابة جاهزة، ولكن فشل الاختيار التلقائي.",
+    "noScreenshotWindow": "تعذر تحديد نافذة علامة التبويب لالتقاط الشاشة.",
+    "screenshotFailed": "فشل التقاط الشاشة: {{message}}"
+  },
+  "chat": {
+    "assistant": "المساعد",
+    "placeholder": {
+      "auto": "الوضع التلقائي: اضغط ↑، سأختار الإجابات وأنتقل تلقائيًا.",
+      "answer": "اضغط ↑ للحصول على الإجابة فقط. يمكنك إضافة تلميح.",
+      "chat": "اسأل عن السؤال، اطلب تحليلاً، أعطني تلميحًا..."
+    },
+    "suggestions": [
+      "حلّل لي السؤال الحالي",
+      "اشرح المفهوم الرئيسي بكلمات بسيطة",
+      "ما هي الخيارات الخاطئة بكل تأكيد؟ ولماذا؟"
+    ],
+    "clear": "مسح",
+    "send": "إرسال",
+    "userPrompt": {
+      "firstAnswer": "أعطني الإجابة على السؤال الحالي",
+      "nextAnswer": "أعطني الإجابة على هذا السؤال"
+    },
+    "modeLabel": {
+      "auto": "تلقائي",
+      "answer": "الإجابة",
+      "chat": "محادثة"
+    }
+  },
+  "toggles": {
+    "answerOnly": "الإجابة فقط",
+    "answerOnlyTooltip": {
+      "on": "إيقاف الإجابة فقط",
+      "off": "إعادة الإجابة فقط"
+    },
+    "autoMode": "الوضع التلقائي",
+    "autoModeTooltip": {
+      "on": "إيقاف الوضع التلقائي",
+      "off": "اختيار الإجابة والانتقال إلى السؤال التالي"
+    }
+  },
+  "detected": {
+    "pageContext": "سياق الصفحة",
+    "options": "{{count}} خيارات",
+    "screenshot": "تم إرفاق لقطة الشاشة"
+  },
+  "options": {
+    "title": "الإعدادات",
+    "backendUrl": "Backend URL",
+    "sharedSecret": "APP_SHARED_SECRET",
+    "language": "اللغة",
+    "save": "حفظ",
+    "saved": "تم حفظ الإعدادات.",
+    "note": "ترسل الإضافة السؤال الحالي ولقطة شاشة إلى الـ backend. مفتاح OpenAI مخزن فقط في الـ backend."
+  }
+}
