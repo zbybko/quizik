@@ -10,7 +10,7 @@ Features:
 
 ## Stack
 
-- Extension: Manifest V3, React 18 + Tailwind CSS v4 (popup & options), vanilla JS (content script, service worker), built with Vite
+- Extension: Manifest V3, React + TypeScript + Tailwind CSS v4 (single bundle shared by popup and options), vanilla JS (content script, service worker), built with Vite
 - Backend: Node 20+ (no dependencies, just `node --env-file`)
 - LLM: OpenAI Responses API (model configurable via `OPENAI_MODEL`)
 
@@ -60,7 +60,9 @@ npm run dev         # build in watch mode
 npm run check       # node --check + extractor smoke test
 ```
 
-After editing files under `src/` (React components, Tailwind CSS), rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or `.html` files do not need a rebuild — just reload the extension in `chrome://extensions`.
+After editing files under `src/` (React + TS components, Tailwind CSS), rerun `npm run build`. Changes in `extension/content.js`, `extension/background.js`, `extension/manifest.json`, or `.html` files do not need a rebuild — just reload the extension in `chrome://extensions`.
+
+`popup.html` and `options.html` load the **same bundle** (`extension/build/app.js`). The app picks the view from `<body data-view="settings">` on the options page; otherwise it renders the chat with a slide-in settings drawer when you click the gear icon.
 
 ## Privacy
 
@@ -76,7 +78,8 @@ After editing files under `src/` (React components, Tailwind CSS), rerun `npm ru
 backend/         Node HTTP server proxying to OpenAI
 extension/       Manifest V3 extension (loaded directly by Chrome)
 extension/build/ Compiled popup/options bundles (gitignored, run npm run build)
-src/             React + Tailwind sources for popup and options
+src/app/         Unified React + TypeScript app (Chat + Settings)
+src/i18n/        i18next config and bundled English fallback
 tests/           Extractor smoke test
 ```
 

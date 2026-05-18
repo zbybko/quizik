@@ -10,13 +10,16 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        popup: "src/popup/main.jsx",
-        options: "src/options/main.jsx"
+        app: "src/app/main.tsx"
       },
       output: {
         entryFileNames: "[name].js",
         chunkFileNames: "[name].js",
-        assetFileNames: "[name][extname]"
+        assetFileNames: "[name][extname]",
+        // Bundle into one file — no shared chunks. Popup and options load
+        // the same app.js (smaller HTTP graph, simpler manifest).
+        manualChunks: undefined,
+        inlineDynamicImports: true
       }
     }
   }

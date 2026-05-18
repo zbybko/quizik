@@ -39,6 +39,15 @@
     height: 100vh;
     min-width: 380px;
   }
+  /* Options page: body is a full-window scrollable column with surface-soft bg */
+  body.view-settings {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    background: var(--color-surface-soft);
+    display: block;
+  }
   #app {
     flex: 1;
     display: flex;
@@ -46,7 +55,17 @@
     min-height: 0;
     min-width: 0;
   }
+  body.view-settings #app {
+    display: block;
+  }
 }
+
+/* Slide-in animation for in-popup settings drawer */
+@keyframes qsa-slide-in {
+  from { transform: translateX(12px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-in { animation: qsa-slide-in 0.18s ease-out; }
 
 /* Markdown rendering */
 .markdown { font-size: 14px; line-height: 1.6; word-wrap: break-word; }

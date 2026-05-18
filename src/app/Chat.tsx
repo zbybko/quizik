@@ -1,118 +1,64 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
-
-marked.setOptions({ breaks: true, gfm: true });
-function renderMarkdown(text) {
-  const html = marked.parse(text || "", { async: false });
-  return DOMPurify.sanitize(html);
-}
+import { renderMarkdown } from "./markdown";
+import {
+  captureTabScreenshot,
+  delay,
+  getTargetTab,
+  sendRuntimeMessage,
+  sendTabMessage
+} from "./messaging";
+import type {
+  ApplyDemoAnswerResult,
+  ChatMessage,
+  ChatMode,
+  ExtractedQuestion,
+  HintResponse
+} from "./types";
 
 const AUTO_LOOP_DELAY_MS = 1200;
 const AUTO_LOOP_MAX_ITERATIONS = 50;
 
-const queryParams = new URLSearchParams(window.location.search);
-const standaloneTargetTabId = Number(queryParams.get("targetTabId"));
-const isStandaloneWindow = queryParams.get("standalone") === "1";
-
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface ChatProps {
+  onOpenSettings: () => void;
 }
 
-function printForwardedEvents(messageType, response) {
-  if (!response || !Array.isArray(response.events) || response.events.length === 0) return;
-  const label = `[QSA forwarded] ${messageType} (${response.events.length})`;
-  console.groupCollapsed(label);
-  for (const event of response.events) {
-    const logger = event.level === "warn" ? console.warn : console.log;
-    logger(event.source || "[QSA]", event.message, event.details ?? "");
-  }
-  console.groupEnd();
-}
-
-function sendTabMessageOnce(tabId, message) {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.sendMessage(tabId, message, (response) => {
-      const error = chrome.runtime.lastError;
-      if (error) {
-        const err = new Error(error.message || "no-receiver");
-        err.isNoReceiver = /Receiving end does not exist|message port closed|Could not establish connection/i.test(error.message || "");
-        reject(err);
-        return;
-      }
-      printForwardedEvents(message?.type, response);
-      if (!response?.ok) {
-        const err = new Error(response?.error || "Failed");
-        err.diagnostics = response?.diagnostics || null;
-        reject(err);
-        return;
-      }
-      resolve(response.result);
-    });
-  });
-}
-
-function sendRuntimeMessage(message) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
-      const error = chrome.runtime.lastError;
-      if (error) { reject(new Error(error.message)); return; }
-      printForwardedEvents(message?.type, response);
-      if (!response?.ok) { reject(new Error(response?.error || "Request failed.")); return; }
-      resolve(response.result);
-    });
-  });
-}
-
-async function getTargetTab() {
-  if (Number.isInteger(standaloneTargetTabId) && standaloneTargetTabId > 0) {
-    return chrome.tabs.get(standaloneTargetTabId);
-  }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab || null;
-}
-
-function captureTabScreenshot(tab, t) {
-  return new Promise((resolve, reject) => {
-    if (!tab?.windowId) { reject(new Error(t("errors.noScreenshotWindow"))); return; }
-    chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: 80 }, (dataUrl) => {
-      const error = chrome.runtime.lastError;
-      if (error) { reject(new Error(t("errors.screenshotFailed", { message: error.message }))); return; }
-      resolve(dataUrl || "");
-    });
-  });
-}
-
-export default function App() {
+export default function Chat({ onOpenSettings }: ChatProps) {
   const { t } = useTranslation();
+
+  const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const standaloneTargetTabId = useMemo(() => {
+    const raw = Number(queryParams.get("targetTabId"));
+    return Number.isInteger(raw) && raw > 0 ? raw : null;
+  }, [queryParams]);
+  const isStandaloneWindow = queryParams.get("standalone") === "1";
 
   const [status, setStatus] = useState(() => t("status.ready"));
   const [errorText, setErrorText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [answerMode, setAnswerMode] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
-  const [detected, setDetected] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [detected, setDetected] = useState<HintResponse["detected"] | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
 
-  const messagesRef = useRef(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
   const answerModeRef = useRef(answerMode);
   const autoModeRef = useRef(autoMode);
   useEffect(() => { answerModeRef.current = answerMode; }, [answerMode]);
   useEffect(() => { autoModeRef.current = autoMode; }, [autoMode]);
 
-  // Suggestions come from locale as an array; cast to array safely
   const suggestions = useMemo(() => {
     const v = t("chat.suggestions", { returnObjects: true });
-    return Array.isArray(v) ? v : [];
+    return Array.isArray(v) ? (v as string[]) : [];
   }, [t]);
 
   useEffect(() => {
     document.body.classList.toggle("standalone", isStandaloneWindow);
-    refreshSettingsStatus();
+    void refreshSettingsStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -140,7 +86,7 @@ export default function App() {
 
   async function refreshSettingsStatus() {
     try {
-      const settings = await sendRuntimeMessage({ type: "QSA_GET_SETTINGS" });
+      const settings = await sendRuntimeMessage<{ backendUrl?: string; hasSharedSecret?: boolean }>({ type: "QSA_GET_SETTINGS" });
       if (!settings.backendUrl) setStatus(t("status.addBackend"));
       else if (!settings.hasSharedSecret) setStatus(t("status.noSecret"));
       else setStatus(t("status.ready"));
@@ -148,8 +94,6 @@ export default function App() {
       setStatus(t("status.checkSettings"));
     }
   }
-
-  const openOptions = useCallback(() => chrome.runtime.openOptionsPage(), []);
 
   const resetChat = useCallback(() => {
     setMessages([]);
@@ -166,30 +110,21 @@ export default function App() {
     });
   }, []);
 
-  function modeLabel(mode, auto) {
+  function modeLabel(mode: ChatMode, auto: boolean) {
     if (mode === "answer" && auto) return t("chat.modeLabel.auto");
     if (mode === "answer") return t("chat.modeLabel.answer");
     return t("chat.modeLabel.chat");
   }
 
-  const sendTabMessage = useCallback(async (tabId, message, { retries = 6, retryDelayMs = 500 } = {}) => {
-    for (let attempt = 0; attempt <= retries; attempt += 1) {
-      try {
-        return await sendTabMessageOnce(tabId, message);
-      } catch (error) {
-        if (!error?.isNoReceiver) throw error;
-        if (attempt < retries) {
-          console.log(`[QSA] tab not ready, retry ${attempt + 1}/${retries} in ${retryDelayMs}ms`);
-          await delay(retryDelayMs);
-        }
-      }
-    }
-    throw new Error(t("errors.reloadPage"));
-  }, [t]);
+  const sendTabMessageT = useCallback(
+    <T = unknown>(tabId: number, message: unknown) =>
+      sendTabMessage<T>(tabId, message, {}, () => new Error(t("errors.reloadPage"))),
+    [t]
+  );
 
-  const applyDemoAnswer = useCallback(async (tabId, answer) => {
+  const applyDemoAnswer = useCallback(async (tabId: number, answer: string) => {
     try {
-      const applyResult = await sendTabMessage(tabId, {
+      const applyResult = await sendTabMessageT<ApplyDemoAnswerResult>(tabId, {
         type: "QSA_APPLY_DEMO_ANSWER",
         payload: { answer }
       });
@@ -200,11 +135,11 @@ export default function App() {
       setErrorText(msg);
       return false;
     }
-  }, [sendTabMessage, t]);
+  }, [sendTabMessageT, t]);
 
-  const runIteration = useCallback(async ({ initialUserText, iteration }) => {
+  const runIteration = useCallback(async ({ initialUserText, iteration }: { initialUserText: string; iteration: number }) => {
     setErrorText("");
-    const mode = answerModeRef.current ? "answer" : "chat";
+    const mode: ChatMode = answerModeRef.current ? "answer" : "chat";
     const userText = initialUserText || (mode === "answer"
       ? (iteration === 0 ? t("chat.userPrompt.firstAnswer") : t("chat.userPrompt.nextAnswer"))
       : "");
@@ -227,18 +162,22 @@ export default function App() {
     let advanced = false;
 
     try {
-      const targetTab = await getTargetTab();
+      const targetTab = await getTargetTab(standaloneTargetTabId);
       if (!targetTab?.id) throw new Error(t("errors.noTab"));
 
       const [extracted, screenshotDataUrl] = await Promise.all([
-        sendTabMessage(targetTab.id, { type: "QSA_EXTRACT_QUESTION" }).catch(() => null),
-        captureTabScreenshot(targetTab, t)
+        sendTabMessageT<ExtractedQuestion>(targetTab.id, { type: "QSA_EXTRACT_QUESTION" }).catch(() => null),
+        captureTabScreenshot(
+          targetTab,
+          t("errors.noScreenshotWindow"),
+          (msg) => t("errors.screenshotFailed", { message: msg })
+        )
       ]);
 
       setStatus(mode === "answer" ? t("status.requestingAnswer") : t("status.requestingHint"));
 
       // history excludes the just-added user message; backend gets it via userText
-      let history = [];
+      let history: { role: "user" | "assistant"; text: string }[] = [];
       setMessages((prev) => {
         history = prev.slice(0, -1)
           .filter((m) => m.role === "user" || m.role === "assistant")
@@ -246,7 +185,7 @@ export default function App() {
         return prev;
       });
 
-      const response = await sendRuntimeMessage({
+      const response = await sendRuntimeMessage<HintResponse>({
         type: "QSA_GET_HINT",
         payload: {
           ...(extracted || {}),
@@ -261,7 +200,7 @@ export default function App() {
       assistantText = response.hint;
       setMessages((prev) => [...prev, { role: "assistant", text: assistantText, modeLabel: modeLabel(mode, autoModeRef.current) }]);
 
-      if (mode === "answer" && autoModeRef.current) {
+      if (mode === "answer" && autoModeRef.current && targetTab.id) {
         advanced = await applyDemoAnswer(targetTab.id, assistantText);
       } else {
         setStatus(mode === "answer" ? t("status.answerReady") : t("status.done"));
@@ -291,9 +230,9 @@ export default function App() {
     } else if (advanced) {
       setStatus(t("status.autoFinished"));
     }
-  }, [applyDemoAnswer, sendTabMessage, t]);
+  }, [applyDemoAnswer, sendTabMessageT, standaloneTargetTabId, t]);
 
-  const onSubmit = useCallback(async (e) => {
+  const onSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (isLoading) return;
     const text = draft.trim();
@@ -301,16 +240,16 @@ export default function App() {
     await runIteration({ initialUserText: text, iteration: 0 });
   }, [draft, isLoading, runIteration]);
 
-  const useSuggestion = useCallback(async (text) => {
+  const useSuggestion = useCallback(async (text: string) => {
     if (isLoading) return;
     setDraft("");
     await runIteration({ initialUserText: text, iteration: 0 });
   }, [isLoading, runIteration]);
 
-  const onKeyDown = (e) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
-      onSubmit();
+      void onSubmit();
     }
   };
 
@@ -328,7 +267,7 @@ export default function App() {
           type="button"
           title={t("app.settings")}
           aria-label={t("app.settings")}
-          onClick={openOptions}
+          onClick={onOpenSettings}
           className="w-[30px] h-[30px] rounded-md text-ink-2 text-[15px] hover:bg-surface-soft hover:text-ink-1 transition-colors"
         >⚙</button>
       </header>
@@ -392,7 +331,7 @@ export default function App() {
               <button
                 key={i}
                 type="button"
-                onClick={() => useSuggestion(s)}
+                onClick={() => void useSuggestion(s)}
                 className="text-left px-3 py-2 border border-line rounded-[10px] bg-surface text-ink-1 text-[13px] leading-snug hover:border-accent hover:bg-accent-soft hover:text-accent transition-colors"
               >{s}</button>
             ))}
