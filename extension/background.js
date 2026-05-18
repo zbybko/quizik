@@ -29,8 +29,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "QSA_GET_LOCALE") {
+    handleLocaleRequest(message.payload?.locale)
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+    return true;
+  }
+
   return false;
 });
+
+async function handleLocaleRequest(rawLocale) {
+  const locale = String(rawLocale || "en").toLowerCase().slice(0, 10);
+  const settings = await getPrivateSettings();
+  const backendUrl = normalizeBackendUrl(settings.backendUrl);
+  if (!backendUrl) throw new Error("Backend URL is not configured.");
+
+  const response = await fetch(`${backendUrl}/i18n/${encodeURIComponent(locale)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.result?.tree) {
+    throw new Error(data?.error || `Locale fetch returned ${response.status}.`);
+  }
+  return data.result; // { locale, tree }
+}
 
 async function handleHintRequest(payload) {
   const settings = await getPrivateSettings();

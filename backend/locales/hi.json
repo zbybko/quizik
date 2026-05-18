@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "Quizik",
+    "settings": "सेटिंग्स"
+  },
+  "status": {
+    "ready": "तैयार",
+    "addBackend": "सेटिंग्स में backend URL जोड़ें",
+    "noSecret": "Backend बिना secret के जुड़ा है",
+    "checkSettings": "एक्सटेंशन सेटिंग्स जाँचें",
+    "reading": "प्रश्न पढ़ रहा हूँ और screenshot ले रहा हूँ...",
+    "movingNext": "प्रश्न #{{n}} पर जा रहा हूँ...",
+    "requestingAnswer": "उत्तर माँग रहा हूँ...",
+    "requestingHint": "संकेत माँग रहा हूँ...",
+    "answerReady": "उत्तर तैयार है",
+    "done": "हो गया",
+    "error": "त्रुटि",
+    "answerSelected": "उत्तर चुना गया",
+    "answerSelectedAdvanced": "उत्तर चुना गया · आगे बढ़ गया",
+    "autoStopped": "Auto mode रोक दिया गया।",
+    "autoFinished": "Auto mode पूरा हो गया।"
+  },
+  "errors": {
+    "noTab": "सक्रिय tab नहीं मिला।",
+    "requestFailed": "अनुरोध विफल।",
+    "needMessageOrAnswer": "संदेश लिखें या \"केवल उत्तर\" चालू करें।",
+    "reloadPage": "Quiz पेज को reload करके फिर कोशिश करें।",
+    "readPageFailed": "पेज नहीं पढ़ सका।",
+    "autoSelectFailed": "उत्तर तैयार, लेकिन auto-select विफल।",
+    "noScreenshotWindow": "Screenshot के लिए tab विंडो निर्धारित नहीं हो सकी।",
+    "screenshotFailed": "Screenshot विफल: {{message}}"
+  },
+  "chat": {
+    "assistant": "Assistant",
+    "placeholder": {
+      "auto": "Auto mode: ↑ दबाएँ, मैं उत्तर चुनूँगा और आगे बढ़ूँगा।",
+      "answer": "केवल उत्तर पाने के लिए ↑ दबाएँ। आप एक संकेत भी जोड़ सकते हैं।",
+      "chat": "प्रश्न के बारे में पूछें, विश्लेषण माँगें, मुझे संकेत दें..."
+    },
+    "suggestions": [
+      "मेरे लिए वर्तमान प्रश्न का विश्लेषण करें",
+      "मुख्य अवधारणा को सरल शब्दों में समझाएँ",
+      "कौन से विकल्प निश्चित रूप से गलत हैं, और क्यों?"
+    ],
+    "clear": "साफ़ करें",
+    "send": "भेजें",
+    "userPrompt": {
+      "firstAnswer": "वर्तमान प्रश्न का उत्तर दें",
+      "nextAnswer": "इस प्रश्न का उत्तर दें"
+    },
+    "modeLabel": {
+      "auto": "Auto",
+      "answer": "उत्तर",
+      "chat": "Chat"
+    }
+  },
+  "toggles": {
+    "answerOnly": "केवल उत्तर",
+    "answerOnlyTooltip": {
+      "on": "केवल उत्तर बंद करें",
+      "off": "केवल उत्तर लौटाएँ"
+    },
+    "autoMode": "Auto mode",
+    "autoModeTooltip": {
+      "on": "Auto mode बंद करें",
+      "off": "उत्तर चुनें और अगले प्रश्न पर जाएँ"
+    }
+  },
+  "detected": {
+    "pageContext": "पेज संदर्भ",
+    "options": "{{count}} विकल्प",
+    "screenshot": "screenshot संलग्न"
+  },
+  "options": {
+    "title": "सेटिंग्स",
+    "backendUrl": "Backend URL",
+    "sharedSecret": "APP_SHARED_SECRET",
+    "language": "भाषा",
+    "save": "सहेजें",
+    "saved": "सेटिंग्स सहेजी गईं।",
+    "note": "एक्सटेंशन वर्तमान प्रश्न और screenshot आपके backend पर भेजता है। OpenAI API key केवल backend पर संग्रहीत है।"
+  }
+}

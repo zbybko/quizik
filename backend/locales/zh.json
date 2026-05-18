@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "Quizik",
+    "settings": "设置"
+  },
+  "status": {
+    "ready": "就绪",
+    "addBackend": "请在设置中添加后端地址",
+    "noSecret": "后端已连接,但未设置密钥",
+    "checkSettings": "请检查扩展设置",
+    "reading": "正在读取问题并截图...",
+    "movingNext": "正在跳转到第 {{n}} 题...",
+    "requestingAnswer": "正在请求答案...",
+    "requestingHint": "正在请求提示...",
+    "answerReady": "答案已准备好",
+    "done": "完成",
+    "error": "错误",
+    "answerSelected": "答案已选择",
+    "answerSelectedAdvanced": "答案已选择 · 已跳转",
+    "autoStopped": "自动模式已停止。",
+    "autoFinished": "自动模式已完成。"
+  },
+  "errors": {
+    "noTab": "找不到活动标签页。",
+    "requestFailed": "请求失败。",
+    "needMessageOrAnswer": "请输入消息或开启「仅答案」模式。",
+    "reloadPage": "请刷新测试页面后重试。",
+    "readPageFailed": "无法读取页面。",
+    "autoSelectFailed": "答案已准备,但自动选择失败。",
+    "noScreenshotWindow": "无法确定截图窗口。",
+    "screenshotFailed": "截图失败:{{message}}"
+  },
+  "chat": {
+    "assistant": "助手",
+    "placeholder": {
+      "auto": "自动模式:按 ↑,我会选择答案并继续。",
+      "answer": "按 ↑ 仅获取答案。可以补充提示。",
+      "chat": "提问、要求分析或给我一个提示..."
+    },
+    "suggestions": [
+      "帮我分析当前问题",
+      "用简单的话解释关键概念",
+      "哪些选项肯定是错的?为什么?"
+    ],
+    "clear": "清除",
+    "send": "发送",
+    "userPrompt": {
+      "firstAnswer": "请给我当前问题的答案",
+      "nextAnswer": "请给我这道题的答案"
+    },
+    "modeLabel": {
+      "auto": "自动",
+      "answer": "答案",
+      "chat": "聊天"
+    }
+  },
+  "toggles": {
+    "answerOnly": "仅答案",
+    "answerOnlyTooltip": {
+      "on": "关闭仅答案模式",
+      "off": "只返回答案"
+    },
+    "autoMode": "自动模式",
+    "autoModeTooltip": {
+      "on": "关闭自动模式",
+      "off": "选择答案并跳转到下一题"
+    }
+  },
+  "detected": {
+    "pageContext": "页面上下文",
+    "options": "{{count}} 个选项",
+    "screenshot": "已附加截图"
+  },
+  "options": {
+    "title": "设置",
+    "backendUrl": "后端地址",
+    "sharedSecret": "APP_SHARED_SECRET",
+    "language": "语言",
+    "save": "保存",
+    "saved": "设置已保存。",
+    "note": "扩展将当前问题和截图发送到您的后端。OpenAI API 密钥仅保存在后端。"
+  }
+}
