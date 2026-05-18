@@ -1,0 +1,47 @@
+{
+  "_meta": {
+    "description": "Auto-mode navigation markers: button texts that look like 'next question' (safe to click) vs 'finish/submit attempt' (must never click). Matched case-insensitively against trimmed visible text of buttons / links. New markers can be added here without releasing a new extension version — clients refresh via GET /config/navigation.",
+    "matching": "An 'includes' substring match on lowercased text."
+  },
+  "next": [
+    "next", "continue", "next page", "save and next", "save and continue",
+    "далее", "следующ", "продолжить", "сохранить и перейти",
+    "далі", "наступн",
+    "siguiente", "continuar", "guardar y siguiente",
+    "下一题", "下一道", "下一页", "继续", "保存并继续",
+    "अगला", "आगे", "जारी रखें",
+    "التالي", "متابعة", "حفظ ومتابعة",
+    "weiter", "nächste",
+    "suivant", "continuer",
+    "successivo", "continua",
+    "próximo", "continuar",
+    "次", "次へ", "続ける",
+    "다음", "계속"
+  ],
+  "dangerous": [
+    "finish", "end attempt", "submit all", "submit and finish", "submit attempt", "review",
+    "завершить", "отправить всё", "отправить все", "сдать", "проверить", "итог",
+    "завершити", "відправити",
+    "finalizar", "enviar todo", "terminar",
+    "提交全部", "结束", "完成测验",
+    "समाप्त", "जमा करें",
+    "إنهاء", "إرسال الكل",
+    "abschließen", "beenden",
+    "terminer", "soumettre tout",
+    "終了", "提出",
+    "종료", "제출"
+  ],
+  "back": [
+    "back", "previous", "prev",
+    "назад", "попередн",
+    "atrás", "anterior",
+    "上一题", "上一页", "返回",
+    "पिछला", "पीछे",
+    "السابق", "العودة",
+    "zurück", "vorherige",
+    "précédent", "retour",
+    "precedente",
+    "前", "戻る",
+    "이전"
+  ]
+}

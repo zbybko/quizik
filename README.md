@@ -57,6 +57,7 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 | `GET` | `/health` | Liveness check. |
 | `GET` | `/i18n/locales` | Returns `{ locales: [...], default: "en" }`. |
 | `GET` | `/i18n/:locale` | Returns `{ locale, tree }`. Falls back to `en` for unsupported locales. |
+| `GET` | `/config/navigation` | Returns `{ next, dangerous, back }` — multilingual button-text markers used by auto-mode to recognize "next question" / "finish attempt" / "back" buttons. Add new markers in `backend/config/navigation.json` — clients refresh on browser startup and every 6 h. |
 | `POST` | `/ai/hint` | AI chat. Body: `{ mode, screenshotDataUrl, history, userText, question, options, ... }`. Returns `{ result: { hint, detected } }`. |
 
 When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <secret>`. The `/i18n/*` endpoints are public so the extension can warm them before auth flows exist.
@@ -107,8 +108,9 @@ This means edits to the chat or settings UI compile to one file and there's no d
 ## Project layout
 
 ```
-backend/             Node HTTP server (AI proxy + locale tree)
+backend/             Node HTTP server (AI proxy + locale tree + nav-marker config)
 backend/locales/     {en,es,zh,hi,ar,ru,uk}.json — UI translations
+backend/config/      navigation.json — multilingual "next" / "finish" / "back" markers
 extension/           Manifest V3 extension (loaded directly by Chrome)
 extension/build/     Compiled app.{js,css} (gitignored — run `npm run build`)
 tests/               Extractor smoke test (no Chrome required)
