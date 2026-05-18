@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { IS_DEV_MODE } from "@shared/config";
 
 interface ModeTogglesProps {
   answerMode: boolean;
@@ -34,20 +35,22 @@ export function ModeToggles({
         <span className={`w-1.5 h-1.5 rounded-full ${answerMode ? "bg-accent" : "bg-ink-3"}`} />
         {t("toggles.answerOnly")}
       </button>
-      <button
-        type="button"
-        onClick={onToggleAuto}
-        disabled={!answerMode}
-        title={autoMode ? t("toggles.autoModeTooltip.on") : t("toggles.autoModeTooltip.off")}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-          autoMode
-            ? "text-secondary bg-secondary-soft border-secondary"
-            : "text-ink-2 bg-surface border-line hover:text-ink-1 hover:border-line-strong"
-        }`}
-      >
-        <span className={`w-1.5 h-1.5 rounded-full ${autoMode ? "bg-secondary" : "bg-ink-3"}`} />
-        {t("toggles.autoMode")}
-      </button>
+      {IS_DEV_MODE && (
+        <button
+          type="button"
+          onClick={onToggleAuto}
+          disabled={!answerMode}
+          title={autoMode ? t("toggles.autoModeTooltip.on") : t("toggles.autoModeTooltip.off")}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            autoMode
+              ? "text-secondary bg-secondary-soft border-secondary"
+              : "text-ink-2 bg-surface border-line hover:text-ink-1 hover:border-line-strong"
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${autoMode ? "bg-secondary" : "bg-ink-3"}`} />
+          {t("toggles.autoMode")} <span className="opacity-60">· dev</span>
+        </button>
+      )}
       {hasMessages && (
         <button
           type="button"

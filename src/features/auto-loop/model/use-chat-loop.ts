@@ -14,7 +14,7 @@ import {
   sendRuntimeMessage,
   sendTabMessage
 } from "@shared/lib/messaging";
-import { AUTO_LOOP_DELAY_MS, AUTO_LOOP_MAX_ITERATIONS } from "@shared/config";
+import { AUTO_LOOP_DELAY_MS, AUTO_LOOP_MAX_ITERATIONS, IS_DEV_MODE } from "@shared/config";
 
 interface UseChatLoopOptions {
   standaloneTargetTabId: number | null;
@@ -63,6 +63,7 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
 
   const toggleAnswerMode = useCallback(() => setAnswerMode((v) => !v), []);
   const toggleAutoMode = useCallback(() => {
+    if (!IS_DEV_MODE) return; // auto-mode disabled in production builds
     setAutoMode((v) => answerModeRef.current ? !v : false);
   }, []);
 
@@ -173,7 +174,7 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
       assistantText = response.hint;
       setMessages((prev) => [...prev, { role: "assistant", text: assistantText, modeLabel: modeLabel(mode, autoModeRef.current) }]);
 
-      if (mode === "answer" && autoModeRef.current && targetTab.id) {
+      if (IS_DEV_MODE && mode === "answer" && autoModeRef.current && targetTab.id) {
         advanced = await applyDemoAnswer(targetTab.id, assistantText);
       } else {
         setStatus(mode === "answer" ? t("status.answerReady") : t("status.done"));
@@ -189,6 +190,7 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
     setIsLoading(false);
 
     if (
+      IS_DEV_MODE &&
       advanced &&
       answerModeRef.current &&
       autoModeRef.current &&

@@ -6,7 +6,7 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 
 - **Chat UI** — multi-turn conversation with the assistant. Markdown rendering (headings, lists, code, tables, links). Three suggested prompts on empty state.
 - **Answer-only mode** — returns just the answer text, nothing else.
-- **Auto mode** — picks the answer on the page and clicks the "next" button, looping through the whole quiz until the assistant or the page runs out.
+- **Auto mode** — picks the answer on the page and clicks the "next" button, looping through the whole quiz until the assistant or the page runs out. **Dev-only** — hidden in production builds for Chrome Web Store / academic-integrity reasons.
 - **Multilingual** — UI ships in 7 locales (English, Español, 中文, हिन्दी, العربية, Русский, Українська). Picks up the browser language automatically; manual switcher in settings. RTL for Arabic.
 - **Translation tree served by backend** — JSON locale files live in `backend/locales/` and are served via `GET /i18n/:locale`. Optionally swap to a remote POEditor-style worker via `LOCALE_WORKER_URL`.
 - **No browser-side OpenAI key** — all model traffic goes through your local backend. Only a shared secret lives in `chrome.storage.local`.
@@ -76,11 +76,14 @@ When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <sec
 ## Development
 
 ```sh
-npm run build       # Vite build of src/app → extension/build/app.{js,css}
-npm run dev         # build in watch mode
+npm run build       # production build (auto-mode toggle hidden, loop disabled)
+npm run build:dev   # development build (auto-mode toggle visible + active)
+npm run dev         # development build in watch mode
 npm run typecheck   # tsc --noEmit
 npm run check       # typecheck + node --check + extractor smoke test + backend syntax check
 ```
+
+The `IS_DEV_MODE` flag (`src/shared/config/index.ts`) is checked at compile time via `import.meta.env.MODE === "development"`. Vite tree-shakes the dev-only branches out of the production bundle, so the auto-mode JSX literally does not exist in `npm run build` output — verify with `grep "· dev" extension/build/app.js` (0 hits in prod, 1+ in dev).
 
 Workflow rules:
 - After editing anything under `src/` → run `npm run build`, then reload the extension in `chrome://extensions`.
