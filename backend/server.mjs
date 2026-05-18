@@ -15,7 +15,7 @@ const APP_SHARED_SECRET = process.env.APP_SHARED_SECRET || "";
 // i18n config
 const LOCALE_WORKER_URL = (process.env.LOCALE_WORKER_URL || "").trim().replace(/\/+$/, "");
 const LOCALE_CACHE_TTL_MS = Number(process.env.LOCALE_CACHE_TTL_MS || 5 * 60 * 1000); // 5 min
-const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar"];
+const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar", "ru", "uk"];
 const DEFAULT_LOCALE = "en";
 const LOCALES_DIR = path.join(__dirname, "locales");
 const localeCache = new Map(); // locale -> { tree, fetchedAt }
@@ -96,7 +96,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Quiz Study Assistant backend listening on http://localhost:${PORT}`);
+  console.log(`Quizik backend listening on http://localhost:${PORT}`);
 });
 
 async function handleHintRequest(payload) {

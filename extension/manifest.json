@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Quiz Study Assistant",
+  "name": "Quizik",
   "description": "Shows learning hints for visible quiz questions without selecting or submitting answers.",
   "version": "0.1.0",
   "icons": {
@@ -12,7 +12,7 @@
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["https://api.openai.com/*", "<all_urls>"],
   "action": {
-    "default_title": "Quiz Study Assistant",
+    "default_title": "Quizik",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

@@ -2,7 +2,7 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./fallback/en.json";
 
-export const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar"];
+export const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar", "ru", "uk"];
 export const DEFAULT_LOCALE = "en";
 const CACHE_KEY_PREFIX = "i18nCache:";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h on client

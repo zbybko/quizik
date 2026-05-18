@@ -1,4 +1,4 @@
-# Quiz Study Assistant
+# Quizik
 
 Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz page. It extracts the visible question + options, takes a screenshot of the current tab, and asks an LLM via your own backend.
 

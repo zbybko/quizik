@@ -10,7 +10,9 @@ const LANGUAGE_NAMES = {
   es: "Español",
   zh: "中文",
   hi: "हिन्दी",
-  ar: "العربية"
+  ar: "العربية",
+  ru: "Русский",
+  uk: "Українська"
 };
 
 function normalizeBackendUrl(value) {
