@@ -20,6 +20,9 @@ const DEFAULT_LOCALE = "en";
 const LOCALES_DIR = path.join(__dirname, "locales");
 const localeCache = new Map(); // locale -> { tree, fetchedAt }
 
+const NAVIGATION_CONFIG_PATH = path.join(__dirname, "config", "navigation.json");
+let navigationConfigCache = null; // { config, fetchedAt }
+
 const SYSTEM_PROMPT = [
   "You are a study assistant for quizzes.",
   "Do not choose, reveal, rank, or label the correct answer.",
@@ -74,6 +77,12 @@ const server = http.createServer(async (request, response) => {
     if (i18nMatch) {
       const tree = await getLocaleTree(i18nMatch[1]);
       sendJson(response, 200, { ok: true, result: { locale: tree.locale, tree: tree.tree } });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/config/navigation") {
+      const config = await getNavigationConfig();
+      sendJson(response, 200, { ok: true, result: config });
       return;
     }
 
@@ -373,6 +382,20 @@ async function getLocaleTree(requestedLocale) {
 
   localeCache.set(locale, { tree, fetchedAt: Date.now() });
   return { locale, tree };
+}
+
+/**
+ * Auto-mode navigation markers. Same shape as backend/config/navigation.json.
+ * Cached in memory; reloads from disk after LOCALE_CACHE_TTL_MS.
+ */
+async function getNavigationConfig() {
+  if (navigationConfigCache && Date.now() - navigationConfigCache.fetchedAt < LOCALE_CACHE_TTL_MS) {
+    return navigationConfigCache.config;
+  }
+  const raw = await fs.promises.readFile(NAVIGATION_CONFIG_PATH, "utf8");
+  const config = JSON.parse(raw);
+  navigationConfigCache = { config, fetchedAt: Date.now() };
+  return config;
 }
 
 function loadEnvFileWithOverride(envPath) {

@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { initI18n } from "../i18n";
+import { initI18n } from "@shared/lib/i18n";
 import "./app.css";
 
 (async () => {

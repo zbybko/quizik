@@ -6,7 +6,7 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 
 - **Chat UI** — multi-turn conversation with the assistant. Markdown rendering (headings, lists, code, tables, links). Three suggested prompts on empty state.
 - **Answer-only mode** — returns just the answer text, nothing else.
-- **Auto mode** — picks the answer on the page and clicks the "next" button, looping through the whole quiz until the assistant or the page runs out.
+- **Auto mode** — picks the answer on the page and clicks the "next" button, looping through the whole quiz until the assistant or the page runs out. **Dev-only** — hidden in production builds for Chrome Web Store / academic-integrity reasons.
 - **Multilingual** — UI ships in 7 locales (English, Español, 中文, हिन्दी, العربية, Русский, Українська). Picks up the browser language automatically; manual switcher in settings. RTL for Arabic.
 - **Translation tree served by backend** — JSON locale files live in `backend/locales/` and are served via `GET /i18n/:locale`. Optionally swap to a remote POEditor-style worker via `LOCALE_WORKER_URL`.
 - **No browser-side OpenAI key** — all model traffic goes through your local backend. Only a shared secret lives in `chrome.storage.local`.
@@ -33,9 +33,11 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
    cd backend
    cp .env.example .env
    # Edit .env — at minimum set OPENAI_API_KEY and APP_SHARED_SECRET
-   npm start
+   npm start          # production (run once, no reload)
+   npm run dev        # hot reload: restarts on changes to server.mjs, locales/, config/, .env
    ```
 
+   `npm run dev` uses Node 20's built-in `--watch` flag — no nodemon required.
    The backend loads `.env` with **override semantics**, so values in `.env` always win over shell env vars (no surprises if you have `OPENAI_API_KEY` exported globally).
 
 3. Load the extension:
@@ -57,6 +59,7 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 | `GET` | `/health` | Liveness check. |
 | `GET` | `/i18n/locales` | Returns `{ locales: [...], default: "en" }`. |
 | `GET` | `/i18n/:locale` | Returns `{ locale, tree }`. Falls back to `en` for unsupported locales. |
+| `GET` | `/config/navigation` | Returns `{ next, dangerous, back }` — multilingual button-text markers used by auto-mode to recognize "next question" / "finish attempt" / "back" buttons. Add new markers in `backend/config/navigation.json` — clients refresh on browser startup and every 6 h. |
 | `POST` | `/ai/hint` | AI chat. Body: `{ mode, screenshotDataUrl, history, userText, question, options, ... }`. Returns `{ result: { hint, detected } }`. |
 
 When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <secret>`. The `/i18n/*` endpoints are public so the extension can warm them before auth flows exist.
@@ -75,11 +78,14 @@ When `APP_SHARED_SECRET` is set, `/ai/hint` requires `Authorization: Bearer <sec
 ## Development
 
 ```sh
-npm run build       # Vite build of src/app → extension/build/app.{js,css}
-npm run dev         # build in watch mode
+npm run build       # production build (auto-mode toggle hidden, loop disabled)
+npm run build:dev   # development build (auto-mode toggle visible + active)
+npm run dev         # development build in watch mode
 npm run typecheck   # tsc --noEmit
 npm run check       # typecheck + node --check + extractor smoke test + backend syntax check
 ```
+
+The `IS_DEV_MODE` flag (`src/shared/config/index.ts`) is checked at compile time via `import.meta.env.MODE === "development"`. Vite tree-shakes the dev-only branches out of the production bundle, so the auto-mode JSX literally does not exist in `npm run build` output — verify with `grep "· dev" extension/build/app.js` (0 hits in prod, 1+ in dev).
 
 Workflow rules:
 - After editing anything under `src/` → run `npm run build`, then reload the extension in `chrome://extensions`.
@@ -107,13 +113,38 @@ This means edits to the chat or settings UI compile to one file and there's no d
 ## Project layout
 
 ```
-backend/             Node HTTP server (AI proxy + locale tree)
+backend/             Node HTTP server (AI proxy + locale tree + nav-marker config)
 backend/locales/     {en,es,zh,hi,ar,ru,uk}.json — UI translations
+backend/config/      navigation.json — multilingual "next" / "finish" / "back" markers
 extension/           Manifest V3 extension (loaded directly by Chrome)
 extension/build/     Compiled app.{js,css} (gitignored — run `npm run build`)
-src/app/             Unified React + TypeScript app (Chat + Settings + drawer)
-src/i18n/            i18next setup with typed locales and bundled en fallback
 tests/               Extractor smoke test (no Chrome required)
+
+src/                 Frontend in Feature-Sliced Design layout
+src/app/             Entry point + root App (decides chat vs settings view)
+src/pages/           Page compositions
+   chat/               Popup chat page (header + messages + composer)
+   settings/           Settings page (drawer-mode + standalone-mode)
+src/features/        User actions
+   auto-loop/          useChatLoop hook — conversation state + auto-mode loop
+   chat-composer/      Composer textarea + suggestion chips
+   mode-toggles/       "Answer only" / "Auto mode" pills
+   language-switch/    UI language picker
+   backend-config/     Backend URL + shared secret form
+src/entities/        Business entities
+   message/            ChatMessage type, MessageBubble, TypingIndicator
+   locale/             SupportedLocale, language names, bundled en fallback
+   tab-context/        chrome.tabs helpers + extracted-question / hint types
+src/shared/          Reusable plumbing (no business logic)
+   api/                RuntimeResponse, ForwardedEvent types
+   config/             Constants (AUTO_LOOP_DELAY_MS, DEFAULT_BACKEND_URL, ...)
+   lib/i18n/           initI18n, setLocale (uses entities/locale)
+   lib/markdown/       renderMarkdown (marked + DOMPurify)
+   lib/messaging/      sendTabMessage, sendRuntimeMessage, retry logic
+   lib/storage/        Promise wrappers around chrome.storage.local
+
+Path aliases (tsconfig + vite): @app, @pages, @features, @entities, @shared.
+Imports flow downward through layers — pages → features → entities → shared.
 ```
 
 ## License

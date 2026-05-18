@@ -1,4 +1,10 @@
 const DEFAULT_BACKEND_URL = "http://localhost:8787";
+const NAV_CONFIG_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
+
+// Refresh nav-marker config from backend on install, update, browser start,
+// and whenever it gets too stale. Content scripts read the result from chrome.storage.local.
+chrome.runtime.onInstalled.addListener(() => { void refreshNavigationConfig(); });
+chrome.runtime.onStartup?.addListener(() => { void refreshNavigationConfig(); });
 
 chrome.action.onClicked.addListener((tab) => {
   if (!tab?.id) {
@@ -36,8 +42,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "QSA_GET_NAVIGATION_CONFIG") {
+    // Content script asks for markers; we may also opportunistically refresh.
+    getNavigationConfig()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+    return true;
+  }
+
   return false;
 });
+
+async function refreshNavigationConfig() {
+  try {
+    const settings = await getPrivateSettings();
+    const backendUrl = normalizeBackendUrl(settings.backendUrl);
+    if (!backendUrl) return; // no backend configured yet — content.js will use bundled fallback
+    const response = await fetch(`${backendUrl}/config/navigation`);
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data?.result) {
+      await chrome.storage.local.set({
+        navigationConfig: data.result,
+        navigationConfigFetchedAt: Date.now()
+      });
+    }
+  } catch (error) {
+    console.warn("[QSA] navigation config refresh failed:", error?.message || error);
+  }
+}
+
+async function getNavigationConfig() {
+  const stored = await chrome.storage.local.get({
+    navigationConfig: null,
+    navigationConfigFetchedAt: 0
+  });
+  const isStale = Date.now() - (stored.navigationConfigFetchedAt || 0) > NAV_CONFIG_REFRESH_MS;
+  if (isStale || !stored.navigationConfig) {
+    void refreshNavigationConfig(); // fire-and-forget; return cached even while refreshing
+  }
+  return stored.navigationConfig || null;
+}
 
 async function handleLocaleRequest(rawLocale) {
   const locale = String(rawLocale || "en").toLowerCase().slice(0, 10);

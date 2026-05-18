@@ -1,53 +1,31 @@
 import i18n, { type i18n as I18nInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
-import en from "./fallback/en.json";
-
-export const SUPPORTED_LOCALES = ["en", "es", "zh", "hi", "ar", "ru", "uk"] as const;
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-export const DEFAULT_LOCALE: SupportedLocale = "en";
-
-const CACHE_KEY_PREFIX = "i18nCache:";
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h on client
-
-type LocaleTree = Record<string, unknown>;
-type CachedTree = { tree: LocaleTree; fetchedAt: number };
-
-function isSupported(value: string): value is SupportedLocale {
-  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
-}
-
-/** Pick best supported locale from browser preferences. */
-export function detectBrowserLocale(): SupportedLocale {
-  const raw: string[] = [
-    ...((navigator.languages as readonly string[]) || []),
-    ...(navigator.language ? [navigator.language] : [])
-  ];
-  const candidates = raw.map((lang) => String(lang).toLowerCase());
-
-  for (const candidate of candidates) {
-    const base = candidate.split("-")[0] ?? "";
-    if (isSupported(base)) return base;
-  }
-  return DEFAULT_LOCALE;
-}
+import {
+  DEFAULT_LOCALE,
+  RTL_LOCALES,
+  detectBrowserLocale,
+  enFallbackTree,
+  isSupportedLocale,
+  type LocaleTree,
+  type CachedTree,
+  type SupportedLocale
+} from "@entities/locale";
+import { I18N_CACHE_KEY_PREFIX, I18N_CACHE_TTL_MS } from "@shared/config";
+import { storageGet, storageSet } from "@shared/lib/storage";
 
 async function readCache(locale: SupportedLocale): Promise<LocaleTree | null> {
-  return new Promise((resolve) => {
-    const key = CACHE_KEY_PREFIX + locale;
-    chrome.storage.local.get([key], (res: Record<string, CachedTree | undefined>) => {
-      const cached = res[key];
-      if (cached?.fetchedAt && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-        resolve(cached.tree);
-      } else {
-        resolve(null);
-      }
-    });
-  });
+  const key = I18N_CACHE_KEY_PREFIX + locale;
+  const res = await storageGet<Record<string, CachedTree | undefined>>({ [key]: undefined });
+  const cached = res[key];
+  if (cached?.fetchedAt && Date.now() - cached.fetchedAt < I18N_CACHE_TTL_MS) {
+    return cached.tree;
+  }
+  return null;
 }
 
 async function writeCache(locale: SupportedLocale, tree: LocaleTree): Promise<void> {
-  await chrome.storage.local.set({
-    [CACHE_KEY_PREFIX + locale]: { tree, fetchedAt: Date.now() } satisfies CachedTree
+  await storageSet({
+    [I18N_CACHE_KEY_PREFIX + locale]: { tree, fetchedAt: Date.now() } satisfies CachedTree
   });
 }
 
@@ -59,7 +37,10 @@ function fetchLocaleViaBackground(locale: SupportedLocale): Promise<{ locale: st
       (response: { ok: boolean; result?: { locale: string; tree: LocaleTree }; error?: string }) => {
         const err = chrome.runtime.lastError;
         if (err) { reject(new Error(err.message)); return; }
-        if (!response?.ok || !response.result) { reject(new Error(response?.error || "Locale fetch failed")); return; }
+        if (!response?.ok || !response.result) {
+          reject(new Error(response?.error || "Locale fetch failed"));
+          return;
+        }
         resolve(response.result);
       }
     );
@@ -69,7 +50,6 @@ function fetchLocaleViaBackground(locale: SupportedLocale): Promise<{ locale: st
 async function loadLocale(locale: SupportedLocale): Promise<LocaleTree | null> {
   const cached = await readCache(locale);
   if (cached) return cached;
-
   try {
     const { tree } = await fetchLocaleViaBackground(locale);
     await writeCache(locale, tree);
@@ -82,23 +62,23 @@ async function loadLocale(locale: SupportedLocale): Promise<LocaleTree | null> {
 
 function applyDirAndLang(locale: SupportedLocale): void {
   document.documentElement.lang = locale;
-  document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
 }
 
 /**
  * Initialize i18next with bundled English fallback, then asynchronously
- * fetch the user's locale from the backend and swap to it.
+ * fetch the user's locale and swap to it.
  */
 export async function initI18n(): Promise<I18nInstance> {
-  const saved = await new Promise<string>((resolve) => {
-    chrome.storage.local.get({ uiLocale: "" }, (res: { uiLocale: string }) => resolve(res.uiLocale));
-  });
-  const requested: SupportedLocale = saved && isSupported(saved) ? saved : detectBrowserLocale();
+  const { uiLocale } = await storageGet({ uiLocale: "" });
+  const requested: SupportedLocale = uiLocale && isSupportedLocale(uiLocale)
+    ? uiLocale
+    : detectBrowserLocale();
 
   await i18n.use(initReactI18next).init({
     lng: DEFAULT_LOCALE,
     fallbackLng: DEFAULT_LOCALE,
-    resources: { [DEFAULT_LOCALE]: { translation: en } },
+    resources: { [DEFAULT_LOCALE]: { translation: enFallbackTree } },
     interpolation: { escapeValue: false },
     returnObjects: true,
     returnNull: false
@@ -123,11 +103,10 @@ export async function initI18n(): Promise<I18nInstance> {
   return i18n;
 }
 
-/** Manual language switch — used by settings UI. */
+/** Manual language switch. */
 export async function setLocale(locale: string): Promise<void> {
-  const target: SupportedLocale = isSupported(locale) ? locale : DEFAULT_LOCALE;
-  await chrome.storage.local.set({ uiLocale: target });
-
+  const target: SupportedLocale = isSupportedLocale(locale) ? locale : DEFAULT_LOCALE;
+  await storageSet({ uiLocale: target });
   if (target !== DEFAULT_LOCALE) {
     const tree = await loadLocale(target);
     if (tree) i18n.addResourceBundle(target, "translation", tree, true, true);

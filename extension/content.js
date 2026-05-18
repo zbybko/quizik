@@ -573,7 +573,7 @@
     const buttonText = cleanText(`${text} ${ariaText}`);
 
     const navigationText = cleanText(buttonText || collectVisibleText(button.closest?.("div") || button));
-    if (isNextLikeNavigationText(navigationText) || isDangerousNavigationText(navigationText) || /zurück|back|prev|previous|назад/i.test(navigationText)) {
+    if (isNextLikeNavigationText(navigationText) || isDangerousNavigationText(navigationText) || isBackNavigationText(navigationText)) {
       return false;
     }
 
@@ -1479,32 +1479,55 @@
     return false;
   }
 
-  function isDangerousNavigationText(text) {
-    return /заверш|finish|end attempt|submit all|отправить\s+(всё|все)|сдать|проверить|итог|review/i.test(text);
+  /**
+   * Navigation markers used by auto-mode to recognize "next" / "finish" buttons.
+   * Bundled defaults below act as a fallback for when chrome.storage is empty
+   * (first install, backend unreachable). The live list is fetched by background.js
+   * from GET /config/navigation and stored in chrome.storage.local.navigationConfig.
+   */
+  const DEFAULT_NAV_CONFIG = {
+    next: ["next", "continue", "next page", "save and next", "далее", "следующ", "продолжить", "сохранить и перейти"],
+    dangerous: ["finish", "end attempt", "submit all", "submit and finish", "review", "завершить", "отправить всё", "отправить все", "сдать", "проверить", "итог"],
+    back: ["back", "previous", "prev", "назад", "zurück", "vorherige"]
+  };
+
+  let navConfig = DEFAULT_NAV_CONFIG;
+
+  // Pull latest markers from background on init. Until this resolves we use
+  // the bundled defaults — auto-mode still works, just with fewer languages.
+  // Guarded so the extractor smoke test (without a chrome stub) can load this file.
+  if (typeof chrome?.runtime?.sendMessage === "function") {
+    chrome.runtime.sendMessage({ type: "QSA_GET_NAVIGATION_CONFIG" }, (response) => {
+      if (chrome.runtime.lastError) return;
+      if (response?.ok && response.result && Array.isArray(response.result.next)) {
+        navConfig = {
+          next: response.result.next.map((s) => String(s).toLowerCase()),
+          dangerous: (response.result.dangerous || []).map((s) => String(s).toLowerCase()),
+          back: (response.result.back || []).map((s) => String(s).toLowerCase())
+        };
+      }
+    });
   }
 
-  function isNextLikeNavigationText(text) {
-    const normalizedText = cleanText(text).toLowerCase();
-    if (!normalizedText) {
-      return false;
-    }
-
-    const nextMarkers = [
-      "далее",
-      "следующ",
-      "next",
-      "continue",
-      "продолжить",
-      "сохранить и перейти",
-      "save and next",
-      "next page"
-    ];
-
-    return nextMarkers.some((marker) =>
+  function matchesAny(normalizedText, markers) {
+    if (!normalizedText) return false;
+    return markers.some((marker) =>
       normalizedText === marker ||
       normalizedText.startsWith(`${marker} `) ||
       normalizedText.includes(marker)
     );
+  }
+
+  function isDangerousNavigationText(text) {
+    return matchesAny(cleanText(text).toLowerCase(), navConfig.dangerous);
+  }
+
+  function isNextLikeNavigationText(text) {
+    return matchesAny(cleanText(text).toLowerCase(), navConfig.next);
+  }
+
+  function isBackNavigationText(text) {
+    return matchesAny(cleanText(text).toLowerCase(), navConfig.back);
   }
 
   function formatNavigationCandidateForLog(candidate) {
