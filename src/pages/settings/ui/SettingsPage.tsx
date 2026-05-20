@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_LOCALE, detectBrowserLocale } from "@entities/locale";
 import { BackendConfigForm } from "@features/backend-config";
 import { LanguageSelect } from "@features/language-switch";
+import { IS_DEV_MODE } from "@shared/config";
 import { storageGet } from "@shared/lib/storage";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
@@ -41,7 +42,16 @@ export function SettingsPage({ embedded = false, onClose }: SettingsPageProps) {
 
       <div className="grid gap-[18px]">
         <LanguageSelect value={uiLocale} onChange={setUiLocale} />
-        <BackendConfigForm />
+        {IS_DEV_MODE && (
+          <details className="border-t border-line pt-4">
+            <summary className="cursor-pointer text-[13px] font-medium text-ink-2 hover:text-ink-1 select-none">
+              Advanced (dev)
+            </summary>
+            <div className="mt-4">
+              <BackendConfigForm />
+            </div>
+          </details>
+        )}
       </div>
 
       <p className="mt-6 px-4 py-3.5 rounded-lg bg-surface-soft text-ink-2 text-xs leading-relaxed">

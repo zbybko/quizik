@@ -12,7 +12,13 @@ export const IS_DEV_MODE: boolean = import.meta.env.MODE === "development";
 
 export const AUTO_LOOP_DELAY_MS = 1200;
 export const AUTO_LOOP_MAX_ITERATIONS = 50;
-export const DEFAULT_BACKEND_URL = "http://localhost:8787";
+
+/**
+ * Production Cloudflare Worker. Extension uses this by default so new installs
+ * work out-of-the-box without any configuration.
+ * Override via Settings (visible only in dev builds) for local backend testing.
+ */
+export const DEFAULT_BACKEND_URL = "https://quizik-backend.zakhar-bybko.workers.dev";
 
 export const TAB_MESSAGE_RETRIES = 6;
 export const TAB_MESSAGE_RETRY_DELAY_MS = 500;

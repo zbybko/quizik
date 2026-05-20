@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_URL = "http://localhost:8787";
+const DEFAULT_BACKEND_URL = "https://quizik-backend.zakhar-bybko.workers.dev";
 const NAV_CONFIG_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
 
 // Refresh nav-marker config from backend on install, update, browser start,

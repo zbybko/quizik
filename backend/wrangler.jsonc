@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quizik-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "OPENAI_MODEL": "gpt-5.5"
+  }
+  // Secrets (NOT in this file — set via `wrangler secret put`):
+  //   OPENAI_API_KEY      — your OpenAI API key
+  //   APP_SHARED_SECRET   — required Bearer token on /ai/hint (optional, leave unset to disable auth)
+}
