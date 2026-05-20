@@ -6,6 +6,7 @@ import ar from "./locales/ar.json";
 import ru from "./locales/ru.json";
 import uk from "./locales/uk.json";
 import navigationConfig from "./config/navigation.json";
+import { privacyPage, termsPage } from "./pages/legal";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.5";
@@ -15,10 +16,34 @@ const DEFAULT_LOCALE = "en";
 type LocaleTree = Record<string, unknown>;
 const LOCALES: Record<string, LocaleTree> = { en, es, zh, hi, ar, ru, uk };
 
+interface KVNamespace {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
 interface Env {
   OPENAI_API_KEY: string;
   OPENAI_MODEL?: string;
   APP_SHARED_SECRET?: string;
+  RATELIMIT_KV: KVNamespace;
+}
+
+// Per-IP, per-minute counter. Eventually consistent across CF edge nodes,
+// so bursts may briefly exceed the limit — acceptable for MVP abuse control.
+const RATE_LIMIT_REQUESTS = 10;       // per window
+const RATE_LIMIT_WINDOW_SEC = 60;     // window length
+const RATE_LIMIT_TTL_SEC = 120;       // KV entry TTL (2× window for safety)
+
+async function checkRateLimit(env: Env, ip: string): Promise<{ ok: boolean; remaining: number }> {
+  const bucket = Math.floor(Date.now() / 1000 / RATE_LIMIT_WINDOW_SEC);
+  const key = `rl:${ip}:${bucket}`;
+  const current = parseInt((await env.RATELIMIT_KV.get(key)) || "0", 10);
+  if (current >= RATE_LIMIT_REQUESTS) {
+    return { ok: false, remaining: 0 };
+  }
+  // Best-effort write; if it races, worst case is the IP gets one extra request.
+  await env.RATELIMIT_KV.put(key, String(current + 1), { expirationTtl: RATE_LIMIT_TTL_SEC });
+  return { ok: true, remaining: RATE_LIMIT_REQUESTS - current - 1 };
 }
 
 const SYSTEM_PROMPT = [
@@ -63,6 +88,13 @@ export default {
         return json(200, { ok: true });
       }
 
+      if (request.method === "GET" && url.pathname === "/privacy") {
+        return privacyPage();
+      }
+      if (request.method === "GET" && url.pathname === "/terms") {
+        return termsPage();
+      }
+
       if (request.method === "GET" && url.pathname === "/i18n/locales") {
         return json(200, { ok: true, result: { locales: SUPPORTED_LOCALES, default: DEFAULT_LOCALE } });
       }
@@ -81,6 +113,17 @@ export default {
       if (request.method === "POST" && url.pathname === "/ai/hint") {
         const authError = requireAppAuth(request, env);
         if (authError) return authError;
+
+        // Per-IP rate limit.
+        const ip = request.headers.get("CF-Connecting-IP") || "anonymous";
+        const rl = await checkRateLimit(env, ip);
+        if (!rl.ok) {
+          return json(429, {
+            ok: false,
+            error: "Too many requests. Try again in a minute."
+          });
+        }
+
         const payload = await readJsonBody(request);
         const result = await handleHintRequest(payload, env);
         return json(200, { ok: true, result });

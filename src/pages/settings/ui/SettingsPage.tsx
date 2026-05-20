@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_LOCALE, detectBrowserLocale } from "@entities/locale";
 import { BackendConfigForm } from "@features/backend-config";
 import { LanguageSelect } from "@features/language-switch";
-import { IS_DEV_MODE } from "@shared/config";
+import { DEFAULT_BACKEND_URL, IS_DEV_MODE } from "@shared/config";
 import { storageGet } from "@shared/lib/storage";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
@@ -56,6 +56,18 @@ export function SettingsPage({ embedded = false, onClose }: SettingsPageProps) {
 
       <p className="mt-6 px-4 py-3.5 rounded-lg bg-surface-soft text-ink-2 text-xs leading-relaxed">
         {t("options.note")}
+      </p>
+
+      <p className="mt-3 px-1 text-ink-3 text-[11px] flex gap-3">
+        <a href={`${DEFAULT_BACKEND_URL}/privacy`} target="_blank" rel="noreferrer" className="hover:text-accent underline underline-offset-2">
+          Privacy
+        </a>
+        <a href={`${DEFAULT_BACKEND_URL}/terms`} target="_blank" rel="noreferrer" className="hover:text-accent underline underline-offset-2">
+          Terms
+        </a>
+        <a href="https://github.com/zbybko/quizik" target="_blank" rel="noreferrer" className="hover:text-accent underline underline-offset-2">
+          Source
+        </a>
       </p>
     </>
   );
