@@ -6,18 +6,13 @@ const NAV_CONFIG_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
 chrome.runtime.onInstalled.addListener(() => { void refreshNavigationConfig(); });
 chrome.runtime.onStartup?.addListener(() => { void refreshNavigationConfig(); });
 
-chrome.action.onClicked.addListener((tab) => {
-  if (!tab?.id) {
-    return;
-  }
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch(() => {});
 
-  chrome.windows.create({
-    url: chrome.runtime.getURL(`popup.html?standalone=1&targetTabId=${tab.id}`),
-    type: "popup",
-    width: 430,
-    height: 650,
-    focused: true
-  });
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab?.id) return;
+  chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

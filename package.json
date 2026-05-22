@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "package": "npm run build && node scripts/package.mjs",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && node --check extension/background.js && node --check extension/content.js && node tests/extractor-smoke.mjs && npm --prefix backend run check",
     "dev": "vite build --watch --mode development"

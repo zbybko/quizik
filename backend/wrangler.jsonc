@@ -9,8 +9,15 @@
   },
   "vars": {
     "OPENAI_MODEL": "gpt-5.5"
-  }
+  },
+  // Per-IP rate limit via KV (manual sliding window). Native `unsafe.bindings`
+  // RateLimit didn't engage on free tier — KV works reliably.
+  "kv_namespaces": [
+    {
+      "binding": "RATELIMIT_KV",
+      "id": "68cfa756fcfc4217a9640edab785975e"
+    }
+  ]
   // Secrets (NOT in this file — set via `wrangler secret put`):
-  //   OPENAI_API_KEY      — your OpenAI API key
-  //   APP_SHARED_SECRET   — required Bearer token on /ai/hint (optional, leave unset to disable auth)
+  //   OPENAI_API_KEY  — your OpenAI API key
 }

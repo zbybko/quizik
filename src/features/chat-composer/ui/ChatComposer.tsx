@@ -50,7 +50,7 @@ export function ChatComposer({
   };
 
   return (
-    <section className="flex flex-col gap-2 px-3.5 pt-2.5 pb-3.5 border-t border-line bg-surface">
+    <section className="shrink-0 flex flex-col gap-2 px-3.5 pt-2.5 pb-3.5 border-t border-line bg-surface">
       {topSlot}
       {toolbar}
       <form

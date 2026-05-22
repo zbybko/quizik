@@ -4,6 +4,7 @@ node_modules/
 # Build artifacts
 extension/build/
 dist/
+*.zip
 
 # Packed extension and signing key — NEVER commit the .pem
 extension.crx
