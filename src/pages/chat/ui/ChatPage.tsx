@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageBubble, TypingIndicator } from "@entities/message";
-import { ChatComposer, SuggestionList } from "@features/chat-composer";
+import { ChatComposer, ChatEmptyState } from "@features/chat-composer";
 import { ModeToggles } from "@features/mode-toggles";
 import { useChatLoop } from "@features/auto-loop";
 
@@ -13,13 +13,6 @@ interface ChatPageProps {
 
 export function ChatPage({ onOpenSettings }: ChatPageProps) {
   const { t } = useTranslation();
-
-  const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  const standaloneTargetTabId = useMemo(() => {
-    const raw = Number(queryParams.get("targetTabId"));
-    return Number.isInteger(raw) && raw > 0 ? raw : null;
-  }, [queryParams]);
-  const isStandaloneWindow = queryParams.get("standalone") === "1";
 
   const {
     status,
@@ -34,12 +27,11 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
     resetChat,
     refreshSettingsStatus,
     send
-  } = useChatLoop({ standaloneTargetTabId });
+  } = useChatLoop({ standaloneTargetTabId: null });
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    document.body.classList.toggle("standalone", isStandaloneWindow);
     void refreshSettingsStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -57,9 +49,11 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
     return `${subject}${count}${screenshot}`;
   }, [detected, t]);
 
+  const hasMessages = messages.length > 0;
+
   return (
-    <main className="grid grid-rows-[auto_auto_1fr_auto] flex-1 min-h-0 min-w-0">
-      <header className="flex items-center gap-2.5 px-3.5 py-3 border-b border-line bg-surface">
+    <main className="flex flex-col flex-1 h-full min-h-0 min-w-0">
+      <header className="shrink-0 flex items-center gap-2.5 px-3.5 py-3 border-b border-line bg-surface">
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <img src={iconUrl} alt="" className="w-7 h-7 rounded-md bg-accent-soft p-[3px] object-contain" />
           <div className="min-w-0">
@@ -77,7 +71,7 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
       </header>
 
       {detectedText && (
-        <section className="flex items-center gap-2 min-w-0 overflow-hidden px-3.5 py-1.5 border-b border-line bg-surface-soft text-[11px] text-ink-2">
+        <section className="shrink-0 flex items-center gap-2 min-w-0 overflow-hidden px-3.5 py-1.5 border-b border-line bg-surface-soft text-[11px] text-ink-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
           <span className="truncate min-w-0 flex-1">{detectedText}</span>
         </section>
@@ -85,29 +79,34 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
 
       <section
         ref={messagesRef}
-        className="flex flex-col overflow-y-auto overflow-x-hidden min-h-0 min-w-0 px-3.5 py-4 qsa-scroll"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 min-w-0 qsa-scroll"
         aria-live="polite"
       >
-        <div className="flex flex-col gap-3.5 mt-auto min-w-0">
-          {messages.map((msg, i) => (
-            <MessageBubble key={i} message={msg} assistantLabel={t("chat.assistant")} />
-          ))}
-          {isLoading && <TypingIndicator assistantLabel={t("chat.assistant")} />}
-        </div>
+        {hasMessages ? (
+          <div className="flex flex-col gap-3.5 min-w-0 px-3.5 py-4">
+            {messages.map((msg, i) => (
+              <MessageBubble key={i} message={msg} assistantLabel={t("chat.assistant")} />
+            ))}
+            {isLoading && <TypingIndicator assistantLabel={t("chat.assistant")} />}
+          </div>
+        ) : (
+          <div className="h-full px-3.5">
+            <ChatEmptyState onPick={(text) => void send(text)} />
+          </div>
+        )}
       </section>
 
       <ChatComposer
         isLoading={isLoading}
         answerMode={answerMode}
         autoMode={autoMode}
-        hasMessages={messages.length > 0}
+        hasMessages={hasMessages}
         onSend={send}
-        topSlot={messages.length === 0 ? <SuggestionList onPick={(text) => void send(text)} /> : null}
         toolbar={
           <ModeToggles
             answerMode={answerMode}
             autoMode={autoMode}
-            hasMessages={messages.length > 0}
+            hasMessages={hasMessages}
             onToggleAnswer={toggleAnswerMode}
             onToggleAuto={toggleAutoMode}
             onClear={resetChat}
@@ -115,7 +114,7 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
         }
         bottomSlot={
           errorText ? (
-            <p className="m-0 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[12px]">
+            <p className="m-0 px-2.5 py-1.5 rounded-lg bg-[color-mix(in_srgb,#ef4444_10%,transparent)] border border-[color-mix(in_srgb,#ef4444_30%,transparent)] text-[#dc2626] dark:text-[#f87171] text-[12px]">
               {errorText}
             </p>
           ) : null
