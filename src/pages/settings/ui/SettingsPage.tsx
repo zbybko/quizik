@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_LOCALE, detectBrowserLocale } from "@entities/locale";
 import { BackendConfigForm } from "@features/backend-config";
 import { LanguageSelect } from "@features/language-switch";
+import { UsageCard } from "@features/paywall";
 import { DEFAULT_BACKEND_URL, IS_DEV_MODE } from "@shared/config";
 import { storageGet } from "@shared/lib/storage";
 
@@ -41,6 +42,7 @@ export function SettingsPage({ embedded = false, onClose }: SettingsPageProps) {
       </header>
 
       <div className="grid gap-[18px]">
+        <UsageCard />
         <LanguageSelect value={uiLocale} onChange={setUiLocale} />
         {IS_DEV_MODE && (
           <details className="border-t border-line pt-4">

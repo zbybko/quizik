@@ -185,7 +185,14 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
       } else {
         setStatus(mode === "answer" ? t("status.answerReady") : t("status.done"));
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Re-throw limit_reached so ChatPage can show PaywallBanner
+      if (error?.code === "limit_reached" || error?.message === "limit_reached") {
+        setIsLoading(false);
+        // Remove the pending user message before re-throwing
+        setMessages((prev) => prev.filter((m) => m.role !== "user" || m.text !== userText));
+        throw error;
+      }
       const msg = error instanceof Error ? error.message : t("errors.requestFailed");
       setErrorText(msg);
       setStatus(t("status.error"));
@@ -222,6 +229,7 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
     isLoading,
     detected,
     messages,
+    setMessages,
     answerMode,
     autoMode,
     toggleAnswerMode,

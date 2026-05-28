@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build --mode production",
     "build:dev": "vite build --mode development",
     "package": "npm run build && node scripts/package.mjs",
+    "package:dev": "npm run build:dev && node scripts/package.mjs",
+    "deploy:backend": "npm --prefix backend run deploy",
+    "deploy:backend:dev": "npm --prefix backend run deploy:dev",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && node --check extension/background.js && node --check extension/content.js && node tests/extractor-smoke.mjs && npm --prefix backend run check",
     "dev": "vite build --watch --mode development"
