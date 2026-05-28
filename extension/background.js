@@ -1,8 +1,6 @@
 const DEFAULT_BACKEND_URL = "https://quizik-backend.zakhar-bybko.workers.dev";
 const NAV_CONFIG_REFRESH_MS = 6 * 60 * 60 * 1000; // 6h
 
-// Refresh nav-marker config from backend on install, update, browser start,
-// and whenever it gets too stale. Content scripts read the result from chrome.storage.local.
 chrome.runtime.onInstalled.addListener(() => { void refreshNavigationConfig(); });
 chrome.runtime.onStartup?.addListener(() => { void refreshNavigationConfig(); });
 
@@ -15,7 +13,62 @@ chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
 });
 
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+
+async function getOrCreateDeviceId() {
+  const stored = await chrome.storage.local.get({ deviceId: "" });
+  if (stored.deviceId) return stored.deviceId;
+  const id = "dev_" + crypto.randomUUID();
+  await chrome.storage.local.set({ deviceId: id });
+  return id;
+}
+
+async function getAuthHeaders() {
+  const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
+  const deviceId = stored.deviceId || (await getOrCreateDeviceId());
+  const headers = { "X-Device-ID": deviceId };
+  if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
+  return headers;
+}
+
+// Receive JWT token from Clerk auth page
+chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "QUIZIK_AUTH_TOKEN" && message.token) {
+    chrome.storage.local.set({
+      authToken: message.token,
+      authEmail: message.email || "",
+      authPlan: "free",
+    }).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "QSA_GET_AUTH_STATUS") {
+    chrome.storage.local.get({ authToken: "", authEmail: "", authPlan: "anon", deviceId: "" })
+      .then(async (stored) => {
+        const deviceId = stored.deviceId || await getOrCreateDeviceId();
+        sendResponse({
+          ok: true,
+          result: {
+            isSignedIn: Boolean(stored.authToken),
+            email: stored.authEmail,
+            plan: stored.authToken ? (stored.authPlan || "free") : "anon",
+            deviceId,
+          }
+        });
+      })
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+    return true;
+  }
+
+  if (message?.type === "QSA_SIGN_OUT") {
+    chrome.storage.local.remove(["authToken", "authEmail", "authPlan"])
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+    return true;
+  }
+
   if (message?.type === "QSA_GET_HINT") {
     handleHintRequest(message.payload)
       .then((result) => sendResponse({ ok: true, result }))
@@ -104,12 +157,8 @@ async function handleHintRequest(payload) {
     throw new Error("Не удалось найти видимый текст вопроса или скриншот страницы.");
   }
 
-  const headers = {
-    "Content-Type": "application/json"
-  };
-  if (settings.appSharedSecret) {
-    headers.Authorization = `Bearer ${settings.appSharedSecret}`;
-  }
+  const authHeaders = await getAuthHeaders();
+  const headers = { "Content-Type": "application/json", ...authHeaders };
 
   const response = await fetch(`${backendUrl}/ai/hint`, {
     method: "POST",
@@ -118,6 +167,17 @@ async function handleHintRequest(payload) {
   });
 
   const data = await response.json().catch(() => ({}));
+
+  if (response.status === 402) {
+    const err = Object.assign(new Error("limit_reached"), {
+      code: "limit_reached",
+      plan: data.plan,
+      usageToday: data.usageToday,
+      dailyLimit: data.dailyLimit,
+    });
+    throw err;
+  }
+
   if (!response.ok) {
     const message = data?.error || `Backend вернул ошибку ${response.status}.`;
     throw new Error(message);

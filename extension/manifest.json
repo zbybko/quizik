@@ -12,7 +12,10 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["activeTab", "storage", "sidePanel"],
+  "permissions": ["activeTab", "storage", "sidePanel", "tabs"],
+  "externally_connectable": {
+    "matches": ["https://quizik-backend.zakhar-bybko.workers.dev/*"]
+  },
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Quizik — AI study chat",
