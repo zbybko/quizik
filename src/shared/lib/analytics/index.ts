@@ -4,7 +4,7 @@
  * The project API key is intentionally public (write-only, standard for client analytics).
  */
 
-const POSTHOG_HOST = "https://us.i.posthog.com";
+const POSTHOG_HOST = "https://eu.i.posthog.com";
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 
 /** Stable anonymous ID stored in chrome.storage.local */
