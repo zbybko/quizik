@@ -165,13 +165,24 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
             <p className="mt-px mb-0 text-[11px] text-ink-3 truncate">{status}</p>
           </div>
         </div>
-        <button
-          type="button"
-          title={t("app.settings")}
-          aria-label={t("app.settings")}
-          onClick={onOpenSettings}
-          className="w-[30px] h-[30px] rounded-md text-ink-2 text-[15px] hover:bg-surface-soft hover:text-ink-1 transition-colors"
-        >⚙</button>
+        <div className="flex items-center gap-1.5">
+          {auth && !auth.isSignedIn && (
+            <button
+              type="button"
+              onClick={handleSignIn}
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-accent border border-accent/30 hover:bg-accent-soft transition-colors"
+            >
+              Sign in
+            </button>
+          )}
+          <button
+            type="button"
+            title={t("app.settings")}
+            aria-label={t("app.settings")}
+            onClick={onOpenSettings}
+            className="w-[30px] h-[30px] rounded-md text-ink-2 text-[15px] hover:bg-surface-soft hover:text-ink-1 transition-colors"
+          >⚙</button>
+        </div>
       </header>
 
       {detectedText && (

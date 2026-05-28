@@ -140,14 +140,6 @@ export function UsageCard() {
 
       {/* Actions */}
       <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
-        {!isSignedIn && (
-          <button
-            onClick={handleSignIn}
-            className="w-full py-2 rounded-lg border border-line text-[13px] text-ink-1 hover:border-accent hover:text-accent transition-colors"
-          >
-            Sign in with Google
-          </button>
-        )}
         {isPro ? (
           <button
             onClick={handleManageSubscription}
