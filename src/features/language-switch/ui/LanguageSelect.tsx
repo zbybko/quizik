@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { LANGUAGE_NAMES, SUPPORTED_LOCALES } from "@entities/locale";
 import { setLocale } from "@shared/lib/i18n";
+import { analytics } from "@shared/lib/analytics";
 
 interface LanguageSelectProps {
   value: string;
@@ -13,6 +14,7 @@ export function LanguageSelect({ value, onChange }: LanguageSelectProps) {
   async function handle(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.target.value;
     onChange(next);
+    void analytics.languageChanged(next);
     await setLocale(next);
   }
 

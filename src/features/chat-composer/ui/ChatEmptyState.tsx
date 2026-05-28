@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { analytics } from "@shared/lib/analytics";
 
 interface ChatEmptyStateProps {
   onPick: (text: string) => void;
@@ -38,7 +39,7 @@ export function ChatEmptyState({ onPick }: ChatEmptyStateProps) {
             <button
               key={i}
               type="button"
-              onClick={() => onPick(s)}
+              onClick={() => { void analytics.suggestionClicked(s); onPick(s); }}
               className="text-left px-3 py-2 border border-line rounded-[10px] bg-surface text-ink-1 text-[13px] leading-snug hover:border-accent hover:bg-accent-soft hover:text-accent transition-colors"
             >
               {s}

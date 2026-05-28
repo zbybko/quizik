@@ -15,6 +15,7 @@ import {
   sendTabMessage
 } from "@shared/lib/messaging";
 import { AUTO_LOOP_DELAY_MS, AUTO_LOOP_MAX_ITERATIONS, IS_DEV_MODE } from "@shared/config";
+import { analytics } from "@shared/lib/analytics";
 
 interface UseChatLoopOptions {
   standaloneTargetTabId: number | null;
@@ -156,6 +157,12 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => ({ role: m.role, text: m.text }));
         return prev;
+      });
+
+      void analytics.messageSent({
+        mode,
+        hasScreenshot: Boolean(screenshotDataUrl),
+        isFirstMessage: history.length === 0,
       });
 
       const response = await sendRuntimeMessage<HintResponse>({

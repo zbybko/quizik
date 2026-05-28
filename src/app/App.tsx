@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChatPage } from "@pages/chat";
 import { SettingsPage } from "@pages/settings";
+import { analytics } from "@shared/lib/analytics";
 
 type View = "chat" | "settings";
 
@@ -17,6 +18,7 @@ export default function App() {
 
   useEffect(() => {
     document.body.classList.toggle("view-settings", settingsAsPage);
+    if (!settingsAsPage) void analytics.extensionOpened();
   }, [settingsAsPage]);
 
   if (settingsAsPage) {
@@ -32,7 +34,7 @@ function ChatWithSettingsDrawer() {
 
   return (
     <>
-      <ChatPage onOpenSettings={() => setShowSettings(true)} />
+      <ChatPage onOpenSettings={() => { setShowSettings(true); void analytics.settingsOpened(); }} />
       {showSettings && (
         <div
           className="fixed inset-0 z-50 flex flex-col bg-surface animate-in"
