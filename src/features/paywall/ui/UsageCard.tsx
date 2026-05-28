@@ -12,30 +12,39 @@ interface UsageData {
 export function UsageCard() {
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const stored = await chrome.storage.local.get({
-          authToken: "", authEmail: "", deviceId: ""
-        });
-        const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
-        if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
-        const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
-        const json = await res.json();
-        setData({
-          ...json.result,
-          email: stored.authEmail || "",
-          isSignedIn: Boolean(stored.authToken),
-        });
-      } catch { /* ignore */ }
-      finally { setLoading(false); }
-    }
-    void load();
-  }, []);
+  async function load() {
+    setLoading(true);
+    try {
+      const stored = await chrome.storage.local.get({
+        authToken: "", authEmail: "", deviceId: ""
+      });
+      const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
+      if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
+      const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
+      const json = await res.json();
+      setData({
+        ...json.result,
+        email: stored.authEmail || "",
+        isSignedIn: Boolean(stored.authToken),
+      });
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { void load(); }, []);
 
   const handleSignIn = () => {
     chrome.tabs.create({ url: `${DEFAULT_BACKEND_URL}/auth?ext_id=${chrome.runtime.id}` });
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
+    await load();
+    setSigningOut(false);
   };
 
   const handleUpgrade = async () => {
@@ -47,6 +56,20 @@ export function UsageCard() {
     });
     const json = await res.json();
     if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
+  };
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const stored = await chrome.storage.local.get({ authToken: "" });
+      const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/portal`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${stored.authToken}` },
+      });
+      const json = await res.json();
+      if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
+    } catch { /* ignore */ }
+    finally { setPortalLoading(false); }
   };
 
   if (loading) return (
@@ -66,22 +89,26 @@ export function UsageCard() {
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
-      {/* Plan badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-semibold text-ink-1">
+
+      {/* Plan + email + sign out */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ${
+            isPro ? "bg-secondary-soft text-secondary" : "bg-surface-soft text-ink-2"
+          }`}>
             {isPro ? "⭐ Pro" : isSignedIn ? "Free" : "Anonymous"}
           </span>
           {email && (
-            <span className="text-[11px] text-ink-3 truncate max-w-[140px]">{email}</span>
+            <span className="text-[11px] text-ink-3 truncate">{email}</span>
           )}
         </div>
-        {!isPro && (
+        {isSignedIn && (
           <button
-            onClick={handleUpgrade}
-            className="text-[11px] font-semibold text-accent hover:text-accent-hover transition-colors"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="text-[11px] text-ink-3 hover:text-ink-1 transition-colors shrink-0"
           >
-            Upgrade →
+            {signingOut ? "…" : "Sign out"}
           </button>
         )}
       </div>
@@ -89,35 +116,55 @@ export function UsageCard() {
       {/* Usage bar */}
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center">
-          <span className="text-[12px] text-ink-2">Today's requests</span>
+          <span className="text-[12px] text-ink-2">Requests today</span>
           <span className="text-[12px] font-medium text-ink-1">
-            {isPro ? "∞ unlimited" : `${usageToday} / ${dailyLimit}`}
+            {isPro ? "∞" : `${usageToday} / ${dailyLimit}`}
           </span>
         </div>
         {!isPro && (
-          <div className="h-1.5 w-full rounded-full bg-line overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${barColor}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        )}
-        {!isPro && (
-          <span className="text-[11px] text-ink-3">
-            {remaining === 0 ? "Limit reached · resets at midnight UTC" : `${remaining} requests remaining today`}
-          </span>
+          <>
+            <div className="h-1.5 w-full rounded-full bg-line overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${barColor}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-[11px] text-ink-3">
+              {remaining === 0
+                ? "Limit reached · resets at midnight UTC"
+                : `${remaining} remaining · resets at midnight UTC`}
+            </span>
+          </>
         )}
       </div>
 
-      {/* Sign in CTA for anonymous */}
-      {!isSignedIn && (
-        <button
-          onClick={handleSignIn}
-          className="w-full py-2 rounded-lg border border-line text-[13px] text-ink-1 hover:border-accent hover:text-accent transition-colors"
-        >
-          Sign in to sync across devices
-        </button>
-      )}
+      {/* Actions */}
+      <div className="flex flex-col gap-1.5 pt-1 border-t border-line">
+        {!isSignedIn && (
+          <button
+            onClick={handleSignIn}
+            className="w-full py-2 rounded-lg border border-line text-[13px] text-ink-1 hover:border-accent hover:text-accent transition-colors"
+          >
+            Sign in with Google
+          </button>
+        )}
+        {isPro ? (
+          <button
+            onClick={handleManageSubscription}
+            disabled={portalLoading}
+            className="w-full py-2 rounded-lg border border-line text-[13px] text-ink-2 hover:border-accent hover:text-accent transition-colors"
+          >
+            {portalLoading ? "Opening…" : "Manage subscription →"}
+          </button>
+        ) : (
+          <button
+            onClick={handleUpgrade}
+            className="w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover transition-colors"
+          >
+            Upgrade to Pro — $7/mo
+          </button>
+        )}
+      </div>
     </div>
   );
 }
