@@ -1,11 +1,21 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageBubble, TypingIndicator } from "@entities/message";
 import { ChatComposer, ChatEmptyState } from "@features/chat-composer";
 import { ModeToggles } from "@features/mode-toggles";
+import { PaywallBanner } from "@features/paywall";
 import { useChatLoop } from "@features/auto-loop";
+import { sendRuntimeMessage } from "@shared/lib/messaging";
+import { DEFAULT_BACKEND_URL } from "@shared/config";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
+
+interface AuthStatus {
+  isSignedIn: boolean;
+  email: string;
+  plan: "anon" | "free" | "pro";
+  deviceId: string;
+}
 
 interface ChatPageProps {
   onOpenSettings: () => void;
@@ -13,6 +23,10 @@ interface ChatPageProps {
 
 export function ChatPage({ onOpenSettings }: ChatPageProps) {
   const { t } = useTranslation();
+  const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
+  const [usageToday, setUsageToday] = useState(0);
+  const [dailyLimit, setDailyLimit] = useState(20);
 
   const {
     status,
@@ -26,15 +40,54 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
     toggleAutoMode,
     resetChat,
     refreshSettingsStatus,
-    send
+    send: sendRaw,
   } = useChatLoop({ standaloneTargetTabId: null });
 
   const messagesRef = useRef<HTMLDivElement | null>(null);
 
+  const refreshAuth = useCallback(async () => {
+    try {
+      const res = await sendRuntimeMessage<AuthStatus>({ type: "QSA_GET_AUTH_STATUS" });
+      setAuth(res);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     void refreshSettingsStatus();
+    void refreshAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Wrap send to detect 402 limit_reached errors
+  const send = useCallback(async (text: string) => {
+    try {
+      setLimitReached(false);
+      await sendRaw(text);
+    } catch (e: any) {
+      if (e?.code === "limit_reached" || e?.message === "limit_reached") {
+        setLimitReached(true);
+        setUsageToday(e.usageToday ?? dailyLimit);
+        setDailyLimit(e.dailyLimit ?? dailyLimit);
+      }
+    }
+  }, [sendRaw, dailyLimit]);
+
+  const handleSignIn = useCallback(() => {
+    chrome.tabs.create({ url: `${DEFAULT_BACKEND_URL}/auth?ext_id=${chrome.runtime.id}` });
+  }, []);
+
+  const handleUpgrade = useCallback(async () => {
+    try {
+      const stored = await chrome.storage.local.get({ authToken: "" });
+      if (!stored.authToken) { handleSignIn(); return; }
+      const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${stored.authToken}` },
+      });
+      const data = await res.json();
+      if (data?.result?.url) chrome.tabs.create({ url: data.result.url });
+    } catch { /* ignore */ }
+  }, [handleSignIn]);
 
   useEffect(() => {
     const el = messagesRef.current;
@@ -96,12 +149,23 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
         )}
       </section>
 
+      {auth && (
+        <PaywallBanner
+          plan={limitReached ? auth.plan : (auth.plan === "pro" ? "pro" : auth.plan)}
+          usageToday={usageToday}
+          dailyLimit={dailyLimit}
+          isSignedIn={auth.isSignedIn}
+          onSignIn={handleSignIn}
+          onUpgrade={handleUpgrade}
+        />
+      )}
+
       <ChatComposer
-        isLoading={isLoading}
+        isLoading={isLoading || limitReached}
         answerMode={answerMode}
         autoMode={autoMode}
         hasMessages={hasMessages}
-        onSend={send}
+        onSend={limitReached ? async () => {} : send}
         toolbar={
           <ModeToggles
             answerMode={answerMode}

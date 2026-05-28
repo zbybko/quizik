@@ -17,7 +17,17 @@
       "binding": "RATELIMIT_KV",
       "id": "68cfa756fcfc4217a9640edab785975e"
     }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quizik-db",
+      "database_id": "946aacc2-f615-4b4d-a8d7-177118137103"
+    }
   ]
   // Secrets (NOT in this file — set via `wrangler secret put`):
-  //   OPENAI_API_KEY  — your OpenAI API key
+  //   OPENAI_API_KEY     — OpenAI API key
+  //   CLERK_SECRET_KEY   — Clerk secret for JWT verification
+  //   STRIPE_SECRET_KEY  — Stripe secret key
+  //   STRIPE_WEBHOOK_SECRET — Stripe webhook signing secret
 }
