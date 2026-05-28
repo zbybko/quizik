@@ -6,6 +6,7 @@
 
 const POSTHOG_HOST = "https://eu.i.posthog.com";
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
+const ENV = (import.meta.env.VITE_ENV as string | undefined) || "production";
 
 /** Stable anonymous ID stored in chrome.storage.local */
 let _distinctId: string | null = null;
@@ -40,6 +41,7 @@ export async function capture(
         distinct_id: distinctId,
         properties: {
           ...properties,
+          env: ENV,
           $lib: "quizik-extension",
           $lib_version: "0.1.0",
         },
