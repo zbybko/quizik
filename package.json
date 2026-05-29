@@ -7,7 +7,7 @@
     "build": "vite build --mode production",
     "build:dev": "vite build --mode development",
     "package": "npm run build && node scripts/package.mjs",
-    "package:dev": "npm run build:dev && node scripts/package.mjs",
+    "package:dev": "npm run build:dev && node scripts/package.mjs --dev",
     "deploy:backend": "npm --prefix backend run deploy",
     "deploy:backend:dev": "npm --prefix backend run deploy:dev",
     "typecheck": "tsc --noEmit",
