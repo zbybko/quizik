@@ -7,6 +7,16 @@ import ru from "./locales/ru.json";
 import uk from "./locales/uk.json";
 import navigationConfig from "./config/navigation.json";
 import { privacyPage, termsPage } from "./pages/legal";
+import { authPage } from "./pages/auth";
+import {
+  type D1Database,
+  PLAN_LIMITS, ANON_DAILY_LIMIT,
+  getUser, upsertUser, setUserPlan, setUserPlanByStripeCustomer,
+  getUserUsageToday, incrementUserUsage,
+  getAnonUsageToday, incrementAnonUsage,
+} from "./db";
+import { extractUser } from "./auth";
+import { createCheckoutSession, createPortalSession, verifyStripeWebhook } from "./stripe";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.5";
@@ -26,6 +36,12 @@ interface Env {
   OPENAI_MODEL?: string;
   APP_SHARED_SECRET?: string;
   RATELIMIT_KV: KVNamespace;
+  DB: D1Database;
+  CLERK_DOMAIN?: string;            // e.g. "your-app.clerk.accounts.dev"
+  CLERK_PUBLISHABLE_KEY?: string;   // pk_live_... or pk_test_...
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PRO_PRICE_ID?: string;
 }
 
 // Per-IP, per-minute counter. Eventually consistent across CF edge nodes,
@@ -88,6 +104,11 @@ export default {
         return json(200, { ok: true });
       }
 
+      if (request.method === "GET" && url.pathname === "/auth") {
+        const extId = url.searchParams.get("ext_id") || "";
+        return authPage(env.CLERK_PUBLISHABLE_KEY, extId);
+      }
+
       if (request.method === "GET" && url.pathname === "/privacy") {
         return privacyPage();
       }
@@ -110,23 +131,185 @@ export default {
         return json(200, { ok: true, result: navigationConfig });
       }
 
-      if (request.method === "POST" && url.pathname === "/ai/hint") {
-        const authError = requireAppAuth(request, env);
-        if (authError) return authError;
+      // ── Auth: sync user after Clerk sign-in ─────────────────────────────
+      if (request.method === "POST" && url.pathname === "/auth/sync-user") {
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        if (!clerkUser) return json(401, { ok: false, error: "Invalid or missing token." });
+        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+        const usageToday = await getUserUsageToday(env.DB, user.id);
+        return json(200, {
+          ok: true,
+          result: {
+            id: user.id,
+            email: user.email,
+            plan: user.plan,
+            usageToday,
+            dailyLimit: PLAN_LIMITS[user.plan],
+          },
+        });
+      }
 
-        // Per-IP rate limit.
+      // ── User status (plan + usage) ────────────────────────────────────────
+      if (request.method === "GET" && url.pathname === "/user/status") {
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        const deviceId = request.headers.get("X-Device-ID") || null;
+
+        if (clerkUser) {
+          const user = await getUser(env.DB, clerkUser.userId);
+          if (!user) return json(404, { ok: false, error: "User not found." });
+          const usageToday = await getUserUsageToday(env.DB, user.id);
+          return json(200, {
+            ok: true,
+            result: { plan: user.plan, usageToday, dailyLimit: PLAN_LIMITS[user.plan] },
+          });
+        } else if (deviceId) {
+          const usageToday = await getAnonUsageToday(env.DB, deviceId);
+          return json(200, {
+            ok: true,
+            result: { plan: "anon", usageToday, dailyLimit: ANON_DAILY_LIMIT },
+          });
+        }
+        return json(400, { ok: false, error: "Authentication or device ID required." });
+      }
+
+      // ── Stripe: create checkout session ───────────────────────────────────
+      if (request.method === "POST" && url.pathname === "/stripe/checkout") {
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        if (!clerkUser) return json(401, { ok: false, error: "Sign in required." });
+        if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PRO_PRICE_ID) {
+          return json(503, { ok: false, error: "Payments not configured." });
+        }
+        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+        const session = await createCheckoutSession(
+          env.STRIPE_SECRET_KEY,
+          env.STRIPE_PRO_PRICE_ID,
+          user.email,
+          user.id
+        );
+        return json(200, { ok: true, result: session });
+      }
+
+      // ── Stripe: customer portal ───────────────────────────────────────────
+      if (request.method === "POST" && url.pathname === "/stripe/portal") {
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        if (!clerkUser) return json(401, { ok: false, error: "Sign in required." });
+        if (!env.STRIPE_SECRET_KEY) return json(503, { ok: false, error: "Payments not configured." });
+        const user = await getUser(env.DB, clerkUser.userId);
+        if (!user?.stripe_customer_id) return json(400, { ok: false, error: "No active subscription." });
+        const portal = await createPortalSession(env.STRIPE_SECRET_KEY, user.stripe_customer_id);
+        return json(200, { ok: true, result: portal });
+      }
+
+      // ── Stripe: webhook ───────────────────────────────────────────────────
+      if (request.method === "POST" && url.pathname === "/stripe/webhook") {
+        if (!env.STRIPE_WEBHOOK_SECRET) return json(400, { ok: false, error: "Not configured." });
+        const sig = request.headers.get("stripe-signature") || "";
+        const body = await request.text();
+        const event = await verifyStripeWebhook(body, sig, env.STRIPE_WEBHOOK_SECRET);
+        if (!event) return json(400, { ok: false, error: "Invalid webhook signature." });
+
+        const eventType = event.type as string;
+        const obj = (event.data as any)?.object as any;
+
+        if (eventType === "checkout.session.completed") {
+          const userId = obj?.metadata?.user_id as string;
+          const customerId = obj?.customer as string;
+          if (userId && customerId) {
+            await setUserPlan(env.DB, userId, "pro", customerId);
+          }
+        } else if (eventType === "customer.subscription.deleted") {
+          const customerId = obj?.customer as string;
+          if (customerId) {
+            await setUserPlanByStripeCustomer(env.DB, customerId, "free");
+          }
+        }
+
+        return json(200, { ok: true });
+      }
+
+      // ── Payment success / cancel pages ────────────────────────────────────
+      if (request.method === "GET" && url.pathname === "/payment/success") {
+        return new Response(
+          `<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px">
+          <h1>🎉 You're now on Pro!</h1>
+          <p>Close this tab and enjoy Quizik.</p>
+          </body></html>`,
+          { headers: { "Content-Type": "text/html" } }
+        );
+      }
+      if (request.method === "GET" && url.pathname === "/payment/cancel") {
+        return new Response(
+          `<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px">
+          <h1>Payment cancelled</h1>
+          <p>You can upgrade anytime from the Quizik panel.</p>
+          </body></html>`,
+          { headers: { "Content-Type": "text/html" } }
+        );
+      }
+
+      // ── AI hint (main endpoint) ───────────────────────────────────────────
+      if (request.method === "POST" && url.pathname === "/ai/hint") {
+        // Check per-IP legacy rate limit (anti-abuse, fast path)
         const ip = request.headers.get("CF-Connecting-IP") || "anonymous";
         const rl = await checkRateLimit(env, ip);
         if (!rl.ok) {
-          return json(429, {
-            ok: false,
-            error: "Too many requests. Try again in a minute."
-          });
+          return json(429, { ok: false, error: "Too many requests. Try again in a minute." });
         }
 
-        const payload = await readJsonBody(request);
-        const result = await handleHintRequest(payload, env);
-        return json(200, { ok: true, result });
+        // Check user/device daily quota
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        const deviceId = request.headers.get("X-Device-ID") || null;
+
+        if (clerkUser) {
+          // Authenticated user
+          const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+          const usageToday = await getUserUsageToday(env.DB, user.id);
+          const limit = PLAN_LIMITS[user.plan] ?? PLAN_LIMITS.free;
+          if (usageToday >= limit) {
+            return json(402, {
+              ok: false,
+              error: "limit_reached",
+              plan: user.plan,
+              usageToday,
+              dailyLimit: limit,
+            });
+          }
+          const payload = await readJsonBody(request);
+          const result = await handleHintRequest(payload, env);
+          await incrementUserUsage(env.DB, user.id);
+          return json(200, {
+            ok: true,
+            result: {
+              ...result,
+              usage: { usageToday: usageToday + 1, dailyLimit: limit, plan: user.plan },
+            },
+          });
+        } else if (deviceId) {
+          // Anonymous device
+          const usageToday = await getAnonUsageToday(env.DB, deviceId);
+          if (usageToday >= ANON_DAILY_LIMIT) {
+            return json(402, {
+              ok: false,
+              error: "limit_reached",
+              plan: "anon",
+              usageToday,
+              dailyLimit: ANON_DAILY_LIMIT,
+            });
+          }
+          const payload = await readJsonBody(request);
+          const result = await handleHintRequest(payload, env);
+          await incrementAnonUsage(env.DB, deviceId);
+          return json(200, {
+            ok: true,
+            result: {
+              ...result,
+              usage: { usageToday: usageToday + 1, dailyLimit: ANON_DAILY_LIMIT, plan: "anon" },
+            },
+          });
+        } else {
+          // No auth and no device ID — reject
+          return json(400, { ok: false, error: "X-Device-ID header required." });
+        }
       }
 
       return json(404, { ok: false, error: "Route not found." });
