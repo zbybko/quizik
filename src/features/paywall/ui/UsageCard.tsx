@@ -24,9 +24,17 @@ export function UsageCard() {
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
       if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      const result = json?.result;
+      if (!result || typeof result.usageToday === "undefined") {
+        // Backend unavailable or old version — show sensible defaults
+        setData({ plan: "anon", usageToday: 0, dailyLimit: 20, email: "", isSignedIn: false });
+        return;
+      }
       setData({
-        ...json.result,
+        plan: result.plan ?? "anon",
+        usageToday: result.usageToday ?? 0,
+        dailyLimit: result.dailyLimit ?? 20,
         email: stored.authEmail || "",
         isSignedIn: Boolean(stored.authToken),
       });

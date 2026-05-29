@@ -4,20 +4,47 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-05-01",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": {
-    "enabled": true
-  },
+  "observability": { "enabled": true },
+
+  // ── Production (default) ──────────────────────────────────────────────────
   "vars": {
-    "OPENAI_MODEL": "gpt-5.5"
+    "OPENAI_MODEL": "gpt-4o",
+    "ENV": "production"
   },
-  // Per-IP rate limit via KV (manual sliding window). Native `unsafe.bindings`
-  // RateLimit didn't engage on free tier — KV works reliably.
   "kv_namespaces": [
+    { "binding": "RATELIMIT_KV", "id": "68cfa756fcfc4217a9640edab785975e" }
+  ],
+  "d1_databases": [
     {
-      "binding": "RATELIMIT_KV",
-      "id": "68cfa756fcfc4217a9640edab785975e"
+      "binding": "DB",
+      "database_name": "quizik-db",
+      "database_id": "946aacc2-f615-4b4d-a8d7-177118137103"
     }
-  ]
-  // Secrets (NOT in this file — set via `wrangler secret put`):
-  //   OPENAI_API_KEY  — your OpenAI API key
+  ],
+
+  // ── Dev environment ───────────────────────────────────────────────────────
+  "env": {
+    "dev": {
+      "name": "quizik-backend-dev",
+      "vars": {
+        "OPENAI_MODEL": "gpt-4o-mini",
+        "ENV": "development"
+      },
+      "kv_namespaces": [
+        { "binding": "RATELIMIT_KV", "id": "23669dbd17c04132be1493f7bca8ff75" }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "quizik-db-dev",
+          "database_id": "2a842e43-0d69-4d77-b949-8bf1d3c6b966"
+        }
+      ]
+    }
+  }
+
+  // Secrets — set via `wrangler secret put KEY [--env dev]`:
+  //   OPENAI_API_KEY, CLERK_DOMAIN, CLERK_PUBLISHABLE_KEY,
+  //   CLERK_SECRET_KEY, STRIPE_SECRET_KEY, STRIPE_PRO_PRICE_ID,
+  //   STRIPE_WEBHOOK_SECRET
 }
