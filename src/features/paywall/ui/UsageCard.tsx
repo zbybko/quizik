@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth, useUser } from "@clerk/chrome-extension";
+import { useAuth, useClerk, useUser } from "@clerk/chrome-extension";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
 
 interface UsageData {
@@ -10,6 +10,7 @@ interface UsageData {
 
 export function UsageCard() {
   const { isSignedIn, getToken } = useAuth();
+  const clerk = useClerk();
   const { user } = useUser();
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,10 +39,12 @@ export function UsageCard() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
-    // Reload the extension popup to trigger Clerk sign-out
-    window.location.reload();
-    setSigningOut(false);
+    try {
+      // Sign out from Clerk (clears session) + clear our storage cache
+      await clerk.signOut();
+      await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
+    } catch { /* ignore */ }
+    finally { setSigningOut(false); }
   };
 
   const handleUpgrade = async () => {
