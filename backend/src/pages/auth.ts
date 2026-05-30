@@ -14,7 +14,13 @@ export function authPage(clerkPublishableKey: string | undefined, extId: string)
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign in — Quizik</title>
-  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" type="text/javascript"></script>
+  <script
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="${clerkPublishableKey}"
+    src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+    type="text/javascript"
+  ></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -83,24 +89,25 @@ async function onSignedIn(clerk) {
   }
 }
 
-async function init() {
-  // window.Clerk is the class — must instantiate with new
-  const clerk = new window.Clerk(${JSON.stringify(clerkPublishableKey)});
-  await clerk.load();
+// With data-clerk-publishable-key, window.Clerk is auto-initialized instance
+// Just call .load() and wait
+window.addEventListener('load', async () => {
+  try {
+    await window.Clerk.load();
 
-  if (clerk.user) {
-    await onSignedIn(clerk);
-    return;
+    if (window.Clerk.user) {
+      await onSignedIn(window.Clerk);
+      return;
+    }
+
+    window.Clerk.mountSignIn(document.getElementById('clerk-mount'));
+    window.Clerk.addListener(async ({ user }) => {
+      if (user) await onSignedIn(window.Clerk);
+    });
+  } catch (e) {
+    console.error('Clerk init error', e);
   }
-
-  clerk.mountSignIn(document.getElementById('clerk-mount'));
-  clerk.addListener(async ({ user }) => {
-    if (user) await onSignedIn(clerk);
-  });
-}
-
-// Wait for CDN script to finish loading before calling init
-window.addEventListener('load', () => { init().catch(console.error); });
+});
 </script>
 </body>
 </html>`;
