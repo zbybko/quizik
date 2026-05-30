@@ -62,6 +62,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "QUIZIK_AUTH_TOKEN_FROM_CLERK") {
+    // Received from clerk-auth.js content script
+    chrome.storage.local.set({
+      authToken: message.token,
+      authEmail: message.email || "",
+      authPlan: "free",
+    }).then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+    return true;
+  }
+
   if (message?.type === "QSA_SIGN_OUT") {
     chrome.storage.local.remove(["authToken", "authEmail", "authPlan"])
       .then(() => sendResponse({ ok: true }))

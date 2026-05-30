@@ -1,9 +1,15 @@
 /**
  * Auth page — hosted on the Cloudflare Worker.
- * Opens Clerk sign-in, gets JWT, sends it back to the extension.
+ * Embeds Clerk sign-in form, sends JWT token back to the extension.
  */
 
-export function authPage(clerkPublishableKey: string | undefined, extId: string): Response {
+export function authPage(
+  clerkPublishableKey: string | undefined,
+  clerkDomain: string | undefined,
+  extId: string,
+  baseUrl: string,
+  isCallback: boolean,
+): Response {
   if (!clerkPublishableKey) {
     return new Response("Auth not configured.", { status: 503 });
   }
@@ -25,33 +31,20 @@ export function authPage(clerkPublishableKey: string | undefined, extId: string)
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #1a0a2e;
-      color: #f4f4f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 24px;
+      background: #1a0a2e; color: #f4f4f5;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
     }
     .card {
-      background: #1f1f23;
-      border: 1px solid #27272a;
-      border-radius: 16px;
-      padding: 40px 32px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
+      background: #1f1f23; border: 1px solid #27272a;
+      border-radius: 16px; padding: 40px 32px;
+      max-width: 420px; width: 100%; text-align: center;
     }
     .logo { font-size: 32px; margin-bottom: 8px; }
     h1 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
-    p { font-size: 14px; color: #a1a1aa; margin-bottom: 28px; }
+    p { font-size: 14px; color: #a1a1aa; margin-bottom: 24px; }
     #clerk-mount { min-height: 60px; }
-    .success {
-      display: none;
-      color: #4ade80;
-      font-size: 15px;
-      margin-top: 16px;
-    }
+    #success { display: none; color: #4ade80; font-size: 15px; margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -60,12 +53,11 @@ export function authPage(clerkPublishableKey: string | undefined, extId: string)
   <h1>Sign in to Quizik</h1>
   <p>Sign in to unlock more daily requests and sync across devices.</p>
   <div id="clerk-mount"></div>
-  <p class="success" id="success-msg">✅ Signed in! You can close this tab.</p>
+  <p id="success">✅ Signed in! You can close this tab.</p>
 </div>
-
 <script>
 const EXT_ID = ${JSON.stringify(extId)};
-const BACKEND = "https://quizik-backend.zakhar-bybko.workers.dev";
+const BACKEND = ${JSON.stringify(baseUrl)};
 
 async function onSignedIn(clerk) {
   try {
@@ -73,7 +65,7 @@ async function onSignedIn(clerk) {
     await fetch(BACKEND + '/auth/sync-user', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token },
-    });
+    }).catch(() => {});
     if (EXT_ID && typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage(EXT_ID, {
         type: 'QUIZIK_AUTH_TOKEN',
@@ -82,18 +74,17 @@ async function onSignedIn(clerk) {
       });
     }
     document.getElementById('clerk-mount').style.display = 'none';
-    document.getElementById('success-msg').style.display = 'block';
-    setTimeout(() => window.close(), 2000);
+    document.getElementById('success').style.display = 'block';
+    setTimeout(() => window.close(), 1500);
   } catch (e) {
     console.error('Auth error', e);
   }
 }
 
-// With data-clerk-publishable-key, window.Clerk is auto-initialized instance
-// Just call .load() and wait
 window.addEventListener('load', async () => {
   try {
-    await window.Clerk.load();
+    // appearance: {} is required to load Clerk UI components
+    await window.Clerk.load({ appearance: {} });
 
     if (window.Clerk.user) {
       await onSignedIn(window.Clerk);
@@ -106,6 +97,8 @@ window.addEventListener('load', async () => {
     });
   } catch (e) {
     console.error('Clerk init error', e);
+    document.getElementById('clerk-mount').innerHTML =
+      '<p style="color:#f87171;font-size:13px">Sign-in unavailable: ' + e.message + '</p>';
   }
 });
 </script>
