@@ -14,7 +14,7 @@ export function authPage(clerkPublishableKey: string | undefined, extId: string)
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign in — Quizik</title>
-  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" type="text/javascript"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -59,56 +59,48 @@ export function authPage(clerkPublishableKey: string | undefined, extId: string)
 
 <script>
 const EXT_ID = ${JSON.stringify(extId)};
-const BACKEND = ${JSON.stringify("https://quizik-backend.zakhar-bybko.workers.dev")};
-
-async function init() {
-  const clerk = window.Clerk;
-  await clerk.load({ publishableKey: ${JSON.stringify(clerkPublishableKey)} });
-
-  if (clerk.user) {
-    await onSignedIn(clerk);
-    return;
-  }
-
-  clerk.mountSignIn(document.getElementById('clerk-mount'), {
-    afterSignInUrl: window.location.href,
-  });
-
-  clerk.addListener(async ({ user }) => {
-    if (user) await onSignedIn(clerk);
-  });
-}
+const BACKEND = "https://quizik-backend.zakhar-bybko.workers.dev";
 
 async function onSignedIn(clerk) {
   try {
     const token = await clerk.session.getToken();
-
-    // Sync user to our backend
     await fetch(BACKEND + '/auth/sync-user', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token },
     });
-
-    // Send token to extension
-    if (EXT_ID && chrome?.runtime) {
+    if (EXT_ID && typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage(EXT_ID, {
         type: 'QUIZIK_AUTH_TOKEN',
         token,
-        email: clerk.user.primaryEmailAddress?.emailAddress,
+        email: clerk.user?.primaryEmailAddress?.emailAddress || '',
       });
     }
-
     document.getElementById('clerk-mount').style.display = 'none';
     document.getElementById('success-msg').style.display = 'block';
-
-    // Auto-close after 2s
     setTimeout(() => window.close(), 2000);
   } catch (e) {
     console.error('Auth error', e);
   }
 }
 
-init().catch(console.error);
+async function init() {
+  // window.Clerk is the class — must instantiate with new
+  const clerk = new window.Clerk(${JSON.stringify(clerkPublishableKey)});
+  await clerk.load();
+
+  if (clerk.user) {
+    await onSignedIn(clerk);
+    return;
+  }
+
+  clerk.mountSignIn(document.getElementById('clerk-mount'));
+  clerk.addListener(async ({ user }) => {
+    if (user) await onSignedIn(clerk);
+  });
+}
+
+// Wait for CDN script to finish loading before calling init
+window.addEventListener('load', () => { init().catch(console.error); });
 </script>
 </body>
 </html>`;
