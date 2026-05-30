@@ -43,35 +43,43 @@ export default function App() {
     }
   }, [isLoaded, isSignedIn, user]);
 
-  // Show nothing while Clerk loads
-  if (!isLoaded) return null;
-
   // Settings page — always accessible
   if (settingsAsPage) {
     return <SettingsPage />;
   }
 
-  // Not signed in — show sign-in screen
-  if (!isSignedIn) {
-    return <SignInPage />;
-  }
-
+  // Chat is always accessible — sign-in shown only when user explicitly requests it
   return <ChatWithSettingsDrawer />;
 }
 
 function ChatWithSettingsDrawer() {
   const [showSettings, setShowSettings] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const { isSignedIn } = useAuth();
+
+  // Auto-close sign-in drawer when user successfully signs in
+  useEffect(() => {
+    if (isSignedIn && showSignIn) setShowSignIn(false);
+  }, [isSignedIn, showSignIn]);
 
   return (
     <>
-      <ChatPage onOpenSettings={() => { setShowSettings(true); void analytics.settingsOpened(); }} />
+      <ChatPage
+        onOpenSettings={() => { setShowSettings(true); void analytics.settingsOpened(); }}
+        onOpenSignIn={() => setShowSignIn(true)}
+      />
       {showSettings && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-surface animate-in"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-50 flex flex-col bg-surface animate-in" role="dialog" aria-modal="true">
           <SettingsPage embedded onClose={() => setShowSettings(false)} />
+        </div>
+      )}
+      {showSignIn && !isSignedIn && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-surface animate-in" role="dialog" aria-modal="true">
+          <div className="shrink-0 flex items-center justify-between px-3.5 py-3 border-b border-line">
+            <span className="text-[13px] font-semibold">Sign in</span>
+            <button onClick={() => setShowSignIn(false)} className="w-7 h-7 text-ink-2 hover:text-ink-1 text-lg">×</button>
+          </div>
+          <SignInPage />
         </div>
       )}
     </>
