@@ -83,7 +83,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "QSA_GET_HINT") {
     handleHintRequest(message.payload)
       .then((result) => sendResponse({ ok: true, result }))
-      .catch((error) => sendResponse({ ok: false, error: toUserError(error) }));
+      .catch((error) => sendResponse({ ok: false, error: toUserError(error), diagnostics: toErrorDiagnostics(error) }));
     return true;
   }
 
@@ -180,11 +180,15 @@ async function handleHintRequest(payload) {
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 402) {
-    const err = Object.assign(new Error("limit_reached"), {
-      code: "limit_reached",
-      plan: data.plan,
+    const usageStatus = {
+      plan: data.plan || "anon",
       usageToday: data.usageToday,
       dailyLimit: data.dailyLimit,
+    };
+    await chrome.storage.local.set({ usageStatus });
+    const err = Object.assign(new Error("limit_reached"), {
+      code: "limit_reached",
+      ...usageStatus,
     });
     throw err;
   }
@@ -196,6 +200,10 @@ async function handleHintRequest(payload) {
 
   if (!data?.result?.hint) {
     throw new Error("Backend не вернул текст подсказки.");
+  }
+
+  if (data.result?.usage) {
+    await chrome.storage.local.set({ usageStatus: data.result.usage });
   }
 
   return data.result;
@@ -271,4 +279,15 @@ function cleanText(value = "") {
 
 function toUserError(error) {
   return error instanceof Error ? error.message : "Неизвестная ошибка.";
+}
+
+function toErrorDiagnostics(error) {
+  if (!error || typeof error !== "object") return null;
+  const err = error;
+  return {
+    code: err.code,
+    plan: err.plan,
+    usageToday: err.usageToday,
+    dailyLimit: err.dailyLimit,
+  };
 }

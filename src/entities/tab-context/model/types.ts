@@ -18,9 +18,16 @@ export interface DetectedContext {
   historyLength?: number;
 }
 
+export interface UsageStatus {
+  plan: "anon" | "free" | "pro";
+  usageToday: number;
+  dailyLimit: number;
+}
+
 export interface HintResponse {
   hint: string;
   detected: DetectedContext;
+  usage?: UsageStatus;
 }
 
 export interface ApplyDemoAnswerResult {

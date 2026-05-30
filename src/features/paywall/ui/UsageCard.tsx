@@ -9,6 +9,14 @@ interface UsageData {
   dailyLimit: number;
 }
 
+function isUsageData(value: unknown): value is UsageData {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<UsageData>;
+  return (candidate.plan === "anon" || candidate.plan === "free" || candidate.plan === "pro")
+    && typeof candidate.usageToday === "number"
+    && typeof candidate.dailyLimit === "number";
+}
+
 export function UsageCard() {
   const { isSignedIn, getToken } = useAuth();
   const clerk = useClerk();
@@ -24,7 +32,7 @@ export function UsageCard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const stored = await storageGet({ authToken: "", deviceId: "" });
+      const stored = await storageGet({ authToken: "", deviceId: "", usageStatus: null as UsageData | null });
       const token = isSignedIn ? await getToken().catch(() => null) : null;
       const authToken = token || stored.authToken;
 
@@ -37,24 +45,39 @@ export function UsageCard() {
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
       const json = await res.json().catch(() => ({}));
       const result = json?.result;
-      setData({
+      const nextData = {
         plan: result?.plan ?? "anon",
         usageToday: result?.usageToday ?? 0,
         dailyLimit: result?.dailyLimit ?? 20,
-      });
+      };
+      setData(nextData);
+      await chrome.storage.local.set({ usageStatus: nextData });
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [email, getToken, isSignedIn]);
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    function handleStorageChange(changes: Record<string, chrome.storage.StorageChange>, areaName: string) {
+      if (areaName !== "local") return;
+      const usageStatus = changes.usageStatus?.newValue;
+      if (isUsageData(usageStatus)) setData(usageStatus);
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+  }, []);
+
   const handleSignOut = async () => {
     setSigningOut(true);
     setActionError("");
     try {
       await clerk.signOut({ redirectUrl: chrome.runtime.getURL("popup.html") });
+      const anonData: UsageData = { plan: "anon", usageToday: 0, dailyLimit: 20 };
       await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
-      setData({ plan: "anon", usageToday: 0, dailyLimit: 5 });
+      await chrome.storage.local.set({ usageStatus: anonData });
+      setData(anonData);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not sign out.");
     } finally {

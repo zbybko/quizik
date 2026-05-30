@@ -67,7 +67,11 @@ export function sendRuntimeMessage<T = unknown>(message: unknown): Promise<T> {
       const error = chrome.runtime.lastError;
       if (error) { reject(new Error(error.message)); return; }
       printForwardedEvents((message as { type?: string })?.type, response);
-      if (!response?.ok) { reject(new Error(response?.error || "Request failed.")); return; }
+      if (!response?.ok) {
+        const err = Object.assign(new Error(response?.error || "Request failed."), response?.diagnostics ?? {});
+        reject(err);
+        return;
+      }
       resolve(response.result);
     });
   });
