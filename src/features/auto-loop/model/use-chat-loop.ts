@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type ApplyDemoAnswerResult,
@@ -25,9 +25,11 @@ interface UseChatLoopApi {
   status: string;
   setStatus: (s: string) => void;
   errorText: string;
+  setErrorText: Dispatch<SetStateAction<string>>;
   isLoading: boolean;
   detected: DetectedContext | null;
   messages: ChatMessage[];
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   answerMode: boolean;
   autoMode: boolean;
   toggleAnswerMode: () => void;
@@ -226,6 +228,7 @@ export function useChatLoop({ standaloneTargetTabId }: UseChatLoopOptions): UseC
     status,
     setStatus,
     errorText,
+    setErrorText,
     isLoading,
     detected,
     messages,

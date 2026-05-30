@@ -4,6 +4,7 @@
   "short_name": "Quizik",
   "description": "AI study chat for any quiz page. Ask questions, get hints, understand the concept behind the answer.",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqO3NxBP63ex7XVO87UYW6ufoQ8DgWK1y50f2WYFEsHwtNS/aKYchjED1Epurs+lvjsW8iH3RCiw5O+95uu1vwJ5FokZOGdE+NVRHx4J6oUVZkcRcTdBLS1viNPgXauA0/zTpasYv1u4pC7H8XuzSARy+FN+ASy4WJ22MCu9vliW83aYb77giW639UhBEadNTwvFJjTCc3WryGiU1niVSnyTbBzl/82T1U9tkf34TEqMCtkXbTJi7u4YFca+eyGMYRxTEwMm/CaJ8QCW18k6KtR1cG0txGAZqETlKNGfmXtttCKZXwQ1FAfMZMyNrEUeES1rKK1j5zmVedfqA7iHBwwIDAQAB",
   "author": "Zakhar Bybko",
   "homepage_url": "https://github.com/zbybko/quizik",
   "icons": {
@@ -12,7 +13,7 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["activeTab", "storage", "sidePanel", "tabs"],
+  "permissions": ["activeTab", "cookies", "storage", "sidePanel", "tabs"],
   "externally_connectable": {
     "matches": [
       "https://quizik-backend.zakhar-bybko.workers.dev/*",

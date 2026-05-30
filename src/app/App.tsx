@@ -3,6 +3,7 @@ import { useAuth, useUser } from "@clerk/chrome-extension";
 import { ChatPage } from "@pages/chat";
 import { SettingsPage } from "@pages/settings";
 import { SignInPage } from "@pages/sign-in";
+import { IS_DEV_MODE } from "@shared/config";
 import { analytics } from "@shared/lib/analytics";
 
 type View = "chat" | "settings";
@@ -41,7 +42,26 @@ export default function App() {
     } else {
       chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [getToken, isLoaded, isSignedIn, user]);
+
+  useEffect(() => {
+    if (!IS_DEV_MODE || !isLoaded) return;
+
+    void (async () => {
+      const token = isSignedIn ? await getToken().catch(() => null) : null;
+      const stored = await chrome.storage.local.get({ authToken: "", authEmail: "", authPlan: "anon" });
+      console.log("[QSA auth]", {
+        isLoaded,
+        isSignedIn,
+        clerkUserId: user?.id || null,
+        email: user?.primaryEmailAddress?.emailAddress || null,
+        hasClerkToken: Boolean(token),
+        hasStoredToken: Boolean(stored.authToken),
+        storedEmail: stored.authEmail || null,
+        storedPlan: stored.authPlan || null,
+      });
+    })();
+  }, [getToken, isLoaded, isSignedIn, user]);
 
   // Settings page — always accessible
   if (settingsAsPage) {

@@ -6,7 +6,29 @@ import { initI18n } from "@shared/lib/i18n";
 import { CLERK_PUBLISHABLE_KEY } from "@shared/config";
 import "./app.css";
 
-const EXTENSION_URL = chrome.runtime.getURL(".");
+const POPUP_URL = chrome.runtime.getURL("popup.html");
+
+function routeFromClerk(to: string, replace = false) {
+  const targetUrl = new URL(to, window.location.href);
+  const isCurrentExtensionPage = targetUrl.origin === window.location.origin
+    && targetUrl.pathname === window.location.pathname;
+
+  if (to.startsWith("#") || (isCurrentExtensionPage && targetUrl.hash)) {
+    const nextHash = to.startsWith("#") ? to : targetUrl.hash;
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+    const updateHistory = replace ? window.history.replaceState : window.history.pushState;
+
+    updateHistory.call(window.history, null, "", nextUrl);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    return;
+  }
+
+  if (replace) {
+    window.location.replace(targetUrl.href);
+  } else {
+    window.location.assign(targetUrl.href);
+  }
+}
 
 (async () => {
   await initI18n();
@@ -16,9 +38,14 @@ const EXTENSION_URL = chrome.runtime.getURL(".");
     <StrictMode>
       <ClerkProvider
         publishableKey={CLERK_PUBLISHABLE_KEY}
-        afterSignOutUrl={`${EXTENSION_URL}popup.html`}
-        signInFallbackRedirectUrl={`${EXTENSION_URL}popup.html`}
-        signUpFallbackRedirectUrl={`${EXTENSION_URL}popup.html`}
+        afterSignOutUrl={POPUP_URL}
+        signInFallbackRedirectUrl={POPUP_URL}
+        signInForceRedirectUrl={POPUP_URL}
+        signUpFallbackRedirectUrl={POPUP_URL}
+        signUpForceRedirectUrl={POPUP_URL}
+        allowedRedirectProtocols={["chrome-extension:"]}
+        routerPush={(to) => routeFromClerk(to)}
+        routerReplace={(to) => routeFromClerk(to, true)}
       >
         <App />
       </ClerkProvider>

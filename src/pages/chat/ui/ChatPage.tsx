@@ -6,6 +6,7 @@ import { ChatComposer, ChatEmptyState } from "@features/chat-composer";
 import { ModeToggles } from "@features/mode-toggles";
 import { useChatLoop } from "@features/auto-loop";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
+import { storageGet } from "@shared/lib/storage";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
 
@@ -25,7 +26,9 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
 
   const {
     status,
+    setStatus,
     errorText,
+    setErrorText,
     isLoading,
     detected,
     messages,
@@ -57,9 +60,20 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
     if (cmd !== "/status" && cmd !== "/usage") return false;
 
     try {
-      const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
+      const stored = await storageGet({ authToken: "", deviceId: "" });
+      const token = isSignedIn ? await getToken().catch(() => null) : null;
+      const authToken = token || stored.authToken;
+
+      if (token) {
+        await chrome.storage.local.set({
+          authToken: token,
+          authEmail: user?.primaryEmailAddress?.emailAddress || "",
+          authPlan: "free",
+        });
+      }
+
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
-      if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
+      if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
       const data = await res.json();
       const { plan, usageToday: used, dailyLimit: limit } = data.result ?? {};
@@ -85,7 +99,7 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
       ]);
     }
     return true;
-  }, [isSignedIn, user, setMessages]);
+  }, [getToken, isSignedIn, user, setMessages]);
 
   const send = useCallback(async (text: string) => {
     if (await handleSlashCommand(text)) return;
@@ -104,16 +118,35 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
 
   const goToCheckout = useCallback(async () => {
     try {
+      setErrorText("");
+      setStatus("Opening checkout...");
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        setErrorText("Sign-in is still syncing. Close and reopen the panel, then try again.");
+        setStatus(t("status.ready"));
+        return;
+      }
+
       const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (data?.result?.url) chrome.tabs.create({ url: data.result.url });
-    } catch { /* ignore */ }
-  }, [getToken]);
+      const data = await res.json().catch(() => ({}));
+      const url = data?.result?.url;
+
+      if (!res.ok || !url) {
+        setErrorText(data?.error || `Could not start checkout (${res.status}).`);
+        setStatus(t("status.error"));
+        return;
+      }
+
+      await chrome.tabs.create({ url });
+      setStatus(t("status.ready"));
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "Could not start checkout.");
+      setStatus(t("status.error"));
+    }
+  }, [getToken, setErrorText, setStatus, t]);
 
   const handleUpgrade = useCallback(() => {
     if (!isSignedIn) {

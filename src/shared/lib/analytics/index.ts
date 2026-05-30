@@ -3,6 +3,7 @@
  * Uses the PostHog capture REST API directly — no SDK, no extra bundle weight.
  * The project API key is intentionally public (write-only, standard for client analytics).
  */
+import { storageGet } from "@shared/lib/storage";
 
 const POSTHOG_HOST = "https://eu.i.posthog.com";
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
@@ -13,7 +14,7 @@ let _distinctId: string | null = null;
 
 async function getDistinctId(): Promise<string> {
   if (_distinctId) return _distinctId;
-  const stored = await chrome.storage.local.get({ analyticsId: "" });
+  const stored = await storageGet({ analyticsId: "" });
   if (stored.analyticsId) {
     _distinctId = stored.analyticsId;
     return _distinctId!;

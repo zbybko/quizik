@@ -200,8 +200,7 @@ export default {
         const deviceId = request.headers.get("X-Device-ID") || null;
 
         if (clerkUser) {
-          const user = await getUser(env.DB, clerkUser.userId);
-          if (!user) return json(404, { ok: false, error: "User not found." });
+          const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
           const usageToday = await getUserUsageToday(env.DB, user.id);
           return json(200, {
             ok: true,

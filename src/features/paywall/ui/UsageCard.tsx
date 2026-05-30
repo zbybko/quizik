@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { useAuth, useUser } from "@clerk/chrome-extension";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth, useClerk, useUser } from "@clerk/chrome-extension";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
+import { storageGet } from "@shared/lib/storage";
 
 interface UsageData {
   plan: "anon" | "free" | "pro";
@@ -10,18 +11,29 @@ interface UsageData {
 
 export function UsageCard() {
   const { isSignedIn, getToken } = useAuth();
+  const clerk = useClerk();
   const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress || "";
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [actionError, setActionError] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
+      const stored = await storageGet({ authToken: "", deviceId: "" });
+      const token = isSignedIn ? await getToken().catch(() => null) : null;
+      const authToken = token || stored.authToken;
+
+      if (token) {
+        await chrome.storage.local.set({ authToken: token, authEmail: email, authPlan: "free" });
+      }
+
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
-      if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
+      if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
       const json = await res.json().catch(() => ({}));
       const result = json?.result;
@@ -32,41 +44,79 @@ export function UsageCard() {
       });
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }
+  }, [email, getToken, isSignedIn]);
 
-  useEffect(() => { void load(); }, [isSignedIn]);
+  useEffect(() => { void load(); }, [load]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
-    // Reload the extension popup to trigger Clerk sign-out
-    window.location.reload();
-    setSigningOut(false);
+    setActionError("");
+    try {
+      await clerk.signOut({ redirectUrl: chrome.runtime.getURL("popup.html") });
+      await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
+      setData({ plan: "anon", usageToday: 0, dailyLimit: 5 });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not sign out.");
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   const handleUpgrade = async () => {
-    const token = await getToken();
-    if (!token) return;
-    const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const json = await res.json();
-    if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
+    setCheckoutLoading(true);
+    setActionError("");
+    try {
+      const token = await getToken();
+      if (!token) {
+        setActionError("Sign-in is still syncing. Close and reopen the panel, then try again.");
+        return;
+      }
+
+      const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      const url = json?.result?.url;
+
+      if (!res.ok || !url) {
+        setActionError(json?.error || `Could not start checkout (${res.status}).`);
+        return;
+      }
+
+      await chrome.tabs.create({ url });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not start checkout.");
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
+    setActionError("");
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        setActionError("Sign-in is still syncing. Close and reopen the panel, then try again.");
+        return;
+      }
       const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/portal`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const json = await res.json();
-      if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
-    } catch { /* ignore */ }
+      const json = await res.json().catch(() => ({}));
+      const url = json?.result?.url;
+
+      if (!res.ok || !url) {
+        setActionError(json?.error || `Could not open billing portal (${res.status}).`);
+        return;
+      }
+
+      await chrome.tabs.create({ url });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not open billing portal.");
+    }
     finally { setPortalLoading(false); }
   };
 
@@ -84,7 +134,6 @@ export function UsageCard() {
   const remaining = Math.max(0, dailyLimit - usageToday);
   const isPro = plan === "pro";
   const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-accent";
-  const email = user?.primaryEmailAddress?.emailAddress;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
@@ -142,10 +191,16 @@ export function UsageCard() {
         ) : (
           <button
             onClick={handleUpgrade}
-            className="w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover transition-colors"
+            disabled={checkoutLoading}
+            className="w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
-            Upgrade to Pro — $7/mo
+            {checkoutLoading ? "Opening checkout..." : "Upgrade to Pro — $7/mo"}
           </button>
+        )}
+        {actionError && (
+          <p className="m-0 text-[11px] leading-snug text-red-600 dark:text-red-400">
+            {actionError}
+          </p>
         )}
       </div>
     </div>
