@@ -1,10 +1,41 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SignIn, SignUp } from "@clerk/chrome-extension";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
+const popupUrl = chrome.runtime.getURL("popup.html");
+const signInHash = "#sign-in";
+const signUpHash = "#sign-up";
+
+function getClickedLink(event: globalThis.MouseEvent) {
+  return event.composedPath().find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement)
+    ?? (event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null);
+}
 
 export function SignInPage() {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+
+  // Intercept Clerk's own "Sign up" / "Sign in" links and handle
+  // navigation internally instead of letting the extension try to navigate.
+  useEffect(() => {
+    function handleClerkAuthLink(event: globalThis.MouseEvent) {
+      const link = getClickedLink(event);
+      if (!link) return;
+
+      const href = `${link.getAttribute("href") ?? ""} ${link.href}`.toLowerCase();
+      const text = link.textContent?.trim().toLowerCase();
+      const isClerkSignUpLink = mode === "sign-in" && (href.includes("sign-up") || text === "sign up");
+      const isClerkSignInLink = mode === "sign-up" && (href.includes("sign-in") || text === "sign in");
+
+      if (!isClerkSignUpLink && !isClerkSignInLink) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setMode(isClerkSignUpLink ? "sign-up" : "sign-in");
+    }
+
+    document.addEventListener("click", handleClerkAuthLink, true);
+    return () => document.removeEventListener("click", handleClerkAuthLink, true);
+  }, [mode]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto qsa-scroll items-center justify-start bg-surface px-4 py-6 gap-4">
@@ -20,33 +51,21 @@ export function SignInPage() {
 
       {mode === "sign-in" ? (
         <SignIn
+          key="sign-in"
           routing="hash"
-          signUpUrl="#sign-up"
-          fallbackRedirectUrl={chrome.runtime.getURL("popup.html")}
+          signUpUrl={signUpHash}
+          fallbackRedirectUrl={popupUrl}
+          forceRedirectUrl={popupUrl}
         />
       ) : (
         <SignUp
+          key="sign-up"
           routing="hash"
-          signInUrl="#sign-in"
-          fallbackRedirectUrl={chrome.runtime.getURL("popup.html")}
+          signInUrl={signInHash}
+          fallbackRedirectUrl={popupUrl}
+          forceRedirectUrl={popupUrl}
         />
       )}
-
-      <p className="text-[12px] text-ink-3">
-        {mode === "sign-in" ? (
-          <>Don't have an account?{" "}
-            <button onClick={() => setMode("sign-up")} className="text-accent underline underline-offset-2">
-              Sign up
-            </button>
-          </>
-        ) : (
-          <>Already have an account?{" "}
-            <button onClick={() => setMode("sign-in")} className="text-accent underline underline-offset-2">
-              Sign in
-            </button>
-          </>
-        )}
-      </p>
     </div>
   );
 }
