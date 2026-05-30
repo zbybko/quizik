@@ -104,9 +104,54 @@ export default {
         return json(200, { ok: true });
       }
 
+      // ── Clerk Frontend API proxy ──────────────────────────────────────────
+      // Set proxy URL in Clerk Dashboard to:
+      //   https://quizik-backend.zakhar-bybko.workers.dev/clerk-proxy
+      if (url.pathname.startsWith("/clerk-proxy")) {
+        const clerkFapiHost = "clerk.quizik-backend.zakhar-bybko.workers.dev";
+        const clerkPath = url.pathname.replace("/clerk-proxy", "") || "/";
+        const clerkUrl = `https://frontend-api.clerk.services${clerkPath}${url.search}`;
+
+        const headers = new Headers();
+        for (const [key, value] of request.headers.entries()) {
+          const lower = key.toLowerCase();
+          if (!["host", "cf-connecting-ip", "cf-ipcountry", "cf-ray", "cf-visitor", "cf-worker"].includes(lower)) {
+            headers.set(key, value);
+          }
+        }
+        headers.set("x-forwarded-host", clerkFapiHost);
+        headers.set("x-forwarded-proto", "https");
+        // Tell Clerk which instance via its custom header
+        headers.set("x-clerk-fapi-host", clerkFapiHost);
+
+        const proxyResp = await fetch(clerkUrl, {
+          method: request.method,
+          headers,
+          body: ["GET", "HEAD"].includes(request.method) ? null : request.body,
+          redirect: "follow",
+        });
+
+        const respHeaders = new Headers(proxyResp.headers);
+        respHeaders.set("Access-Control-Allow-Origin", request.headers.get("origin") || "*");
+        respHeaders.set("Access-Control-Allow-Credentials", "true");
+        return new Response(proxyResp.body, {
+          status: proxyResp.status,
+          headers: respHeaders,
+        });
+      }
+
+      if (request.method === "GET" && url.pathname === "/auth/sign-in-url") {
+        const domain = env.CLERK_DOMAIN;
+        if (!domain) return json(503, { ok: false, error: "Auth not configured." });
+        const signInUrl = `https://accounts.${domain}/sign-in`;
+        return json(200, { ok: true, result: { url: signInUrl } });
+      }
+
       if (request.method === "GET" && url.pathname === "/auth") {
         const extId = url.searchParams.get("ext_id") || "";
-        return authPage(env.CLERK_PUBLISHABLE_KEY, extId);
+        const isCallback = url.searchParams.get("clerk_redirect") === "1";
+        const baseUrl = `${url.protocol}//${url.host}`;
+        return authPage(env.CLERK_PUBLISHABLE_KEY, env.CLERK_DOMAIN, extId, baseUrl, isCallback);
       }
 
       if (request.method === "GET" && url.pathname === "/privacy") {

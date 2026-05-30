@@ -10,6 +10,9 @@
  */
 export const IS_DEV_MODE: boolean = import.meta.env.MODE === "development";
 
+export const CLERK_PUBLISHABLE_KEY: string =
+  (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined) || "";
+
 export const AUTO_LOOP_DELAY_MS = 1200;
 export const AUTO_LOOP_MAX_ITERATIONS = 50;
 

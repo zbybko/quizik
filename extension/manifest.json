@@ -14,7 +14,10 @@
   },
   "permissions": ["activeTab", "storage", "sidePanel", "tabs"],
   "externally_connectable": {
-    "matches": ["https://quizik-backend.zakhar-bybko.workers.dev/*"]
+    "matches": [
+      "https://quizik-backend.zakhar-bybko.workers.dev/*",
+      "https://quizik-backend-dev.zakhar-bybko.workers.dev/*"
+    ]
   },
   "host_permissions": ["<all_urls>"],
   "action": {
@@ -38,6 +41,13 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://accounts.content-escargot-11.clerk.accounts.dev/*"
+      ],
+      "js": ["clerk-auth.js"],
       "run_at": "document_idle"
     }
   ]

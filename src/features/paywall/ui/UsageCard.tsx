@@ -1,66 +1,55 @@
 import { useEffect, useState } from "react";
+import { useAuth, useUser } from "@clerk/chrome-extension";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
 
 interface UsageData {
   plan: "anon" | "free" | "pro";
   usageToday: number;
   dailyLimit: number;
-  email?: string;
-  isSignedIn: boolean;
 }
 
 export function UsageCard() {
+  const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [signingOut, setSigningOut] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const stored = await chrome.storage.local.get({
-        authToken: "", authEmail: "", deviceId: ""
-      });
+      const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
       if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
       const json = await res.json().catch(() => ({}));
       const result = json?.result;
-      if (!result || typeof result.usageToday === "undefined") {
-        // Backend unavailable or old version — show sensible defaults
-        setData({ plan: "anon", usageToday: 0, dailyLimit: 20, email: "", isSignedIn: false });
-        return;
-      }
       setData({
-        plan: result.plan ?? "anon",
-        usageToday: result.usageToday ?? 0,
-        dailyLimit: result.dailyLimit ?? 20,
-        email: stored.authEmail || "",
-        isSignedIn: Boolean(stored.authToken),
+        plan: result?.plan ?? "anon",
+        usageToday: result?.usageToday ?? 0,
+        dailyLimit: result?.dailyLimit ?? 20,
       });
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, []);
-
-  const handleSignIn = () => {
-    chrome.tabs.create({ url: `${DEFAULT_BACKEND_URL}/auth?ext_id=${chrome.runtime.id}` });
-  };
+  useEffect(() => { void load(); }, [isSignedIn]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
     await chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
-    await load();
+    // Reload the extension popup to trigger Clerk sign-out
+    window.location.reload();
     setSigningOut(false);
   };
 
   const handleUpgrade = async () => {
-    const stored = await chrome.storage.local.get({ authToken: "" });
-    if (!stored.authToken) { handleSignIn(); return; }
+    const token = await getToken();
+    if (!token) return;
     const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${stored.authToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
@@ -69,10 +58,11 @@ export function UsageCard() {
   const handleManageSubscription = async () => {
     setPortalLoading(true);
     try {
-      const stored = await chrome.storage.local.get({ authToken: "" });
+      const token = await getToken();
+      if (!token) return;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/portal`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${stored.authToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
       if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
@@ -89,15 +79,15 @@ export function UsageCard() {
 
   if (!data) return null;
 
-  const { plan, usageToday, dailyLimit, email, isSignedIn } = data;
+  const { plan, usageToday, dailyLimit } = data;
   const pct = Math.min(100, Math.round((usageToday / dailyLimit) * 100));
   const remaining = Math.max(0, dailyLimit - usageToday);
   const isPro = plan === "pro";
   const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-accent";
+  const email = user?.primaryEmailAddress?.emailAddress;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
-
       {/* Plan + email + sign out */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -106,9 +96,7 @@ export function UsageCard() {
           }`}>
             {isPro ? "⭐ Pro" : isSignedIn ? "Free" : "Anonymous"}
           </span>
-          {email && (
-            <span className="text-[11px] text-ink-3 truncate">{email}</span>
-          )}
+          {email && <span className="text-[11px] text-ink-3 truncate">{email}</span>}
         </div>
         {isSignedIn && (
           <button
@@ -132,15 +120,10 @@ export function UsageCard() {
         {!isPro && (
           <>
             <div className="h-1.5 w-full rounded-full bg-line overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${barColor}`}
-                style={{ width: `${pct}%` }}
-              />
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
             </div>
             <span className="text-[11px] text-ink-3">
-              {remaining === 0
-                ? "Limit reached · resets at midnight UTC"
-                : `${remaining} remaining · resets at midnight UTC`}
+              {remaining === 0 ? "Limit reached · resets at midnight UTC" : `${remaining} remaining today`}
             </span>
           </>
         )}

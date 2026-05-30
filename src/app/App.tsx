@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useAuth, useUser } from "@clerk/chrome-extension";
 import { ChatPage } from "@pages/chat";
 import { SettingsPage } from "@pages/settings";
+import { SignInPage } from "@pages/sign-in";
 import { analytics } from "@shared/lib/analytics";
 
 type View = "chat" | "settings";
@@ -15,20 +17,48 @@ function initialView(): View {
 export default function App() {
   const [view] = useState<View>(() => initialView());
   const settingsAsPage = view === "settings";
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     document.body.classList.toggle("view-settings", settingsAsPage);
     if (!settingsAsPage) void analytics.extensionOpened();
   }, [settingsAsPage]);
 
+  // Sync Clerk token → chrome.storage so background.js can use it
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn) {
+      void getToken().then((token) => {
+        if (token) {
+          chrome.storage.local.set({
+            authToken: token,
+            authEmail: user?.primaryEmailAddress?.emailAddress || "",
+            authPlan: "free",
+          });
+        }
+      });
+    } else {
+      chrome.storage.local.remove(["authToken", "authEmail", "authPlan"]);
+    }
+  }, [isLoaded, isSignedIn, user]);
+
+  // Show nothing while Clerk loads
+  if (!isLoaded) return null;
+
+  // Settings page — always accessible
   if (settingsAsPage) {
     return <SettingsPage />;
+  }
+
+  // Not signed in — show sign-in screen
+  if (!isSignedIn) {
+    return <SignInPage />;
   }
 
   return <ChatWithSettingsDrawer />;
 }
 
-/** Chat with an inline Settings drawer overlay, toggled by the gear icon. */
 function ChatWithSettingsDrawer() {
   const [showSettings, setShowSettings] = useState(false);
 
