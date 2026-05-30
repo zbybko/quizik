@@ -7,6 +7,11 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Clerk (and other npm packages) reference `global` which doesn't exist
+  // in browser extensions — polyfill it with globalThis.
+  define: {
+    global: "globalThis",
+  },
   resolve: {
     alias: {
       "@app": r("./src/app"),

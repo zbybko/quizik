@@ -11,15 +11,17 @@ const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
 
 interface ChatPageProps {
   onOpenSettings: () => void;
+  onOpenSignIn?: () => void;
 }
 
-export function ChatPage({ onOpenSettings }: ChatPageProps) {
+export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
   const { t } = useTranslation();
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
   const [limitReached, setLimitReached] = useState(false);
   const [usageToday, setUsageToday] = useState(0);
   const [dailyLimit, setDailyLimit] = useState(20);
+  const [pendingUpgrade, setPendingUpgrade] = useState(false);
 
   const {
     status,
@@ -100,7 +102,7 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
     }
   }, [sendRaw, dailyLimit, limitReached, handleSlashCommand]);
 
-  const handleUpgrade = useCallback(async () => {
+  const goToCheckout = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -112,6 +114,23 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
       if (data?.result?.url) chrome.tabs.create({ url: data.result.url });
     } catch { /* ignore */ }
   }, [getToken]);
+
+  const handleUpgrade = useCallback(() => {
+    if (!isSignedIn) {
+      setPendingUpgrade(true);
+      onOpenSignIn?.();
+    } else {
+      void goToCheckout();
+    }
+  }, [isSignedIn, onOpenSignIn, goToCheckout]);
+
+  // After sign-in, auto-redirect to checkout if upgrade was pending
+  useEffect(() => {
+    if (isSignedIn && pendingUpgrade) {
+      setPendingUpgrade(false);
+      void goToCheckout();
+    }
+  }, [isSignedIn, pendingUpgrade, goToCheckout]);
 
   const detectedText = useMemo(() => {
     if (!detected) return "";
@@ -133,13 +152,24 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
             <p className="mt-px mb-0 text-[11px] text-ink-3 truncate">{status}</p>
           </div>
         </div>
-        <button
-          type="button"
-          title={t("app.settings")}
-          aria-label={t("app.settings")}
-          onClick={onOpenSettings}
-          className="w-[30px] h-[30px] rounded-md text-ink-2 text-[15px] hover:bg-surface-soft hover:text-ink-1 transition-colors"
-        >⚙</button>
+        <div className="flex items-center gap-1.5">
+          {!isSignedIn && onOpenSignIn && (
+            <button
+              type="button"
+              onClick={onOpenSignIn}
+              className="px-2.5 py-1 rounded-md text-[11px] font-medium text-accent border border-accent/30 hover:bg-accent-soft transition-colors"
+            >
+              Sign in
+            </button>
+          )}
+          <button
+            type="button"
+            title={t("app.settings")}
+            aria-label={t("app.settings")}
+            onClick={onOpenSettings}
+            className="w-[30px] h-[30px] rounded-md text-ink-2 text-[15px] hover:bg-surface-soft hover:text-ink-1 transition-colors"
+          >⚙</button>
+        </div>
       </header>
 
       {detectedText && (
@@ -172,10 +202,12 @@ export function ChatPage({ onOpenSettings }: ChatPageProps) {
         <div className="shrink-0 flex flex-col gap-2 px-3.5 py-3 border-t bg-[color-mix(in_srgb,#ea580c_8%,transparent)] border-[color-mix(in_srgb,#ea580c_25%,transparent)]">
           <p className="text-[13px] font-semibold text-ink-1">Daily limit reached</p>
           <p className="text-[12px] text-ink-2 leading-snug">
-            You've used all free requests today. Upgrade to Pro for unlimited access.
+            {isSignedIn
+              ? "You've used all free requests today. Upgrade for unlimited access."
+              : "Sign in for 20 free requests/day, or upgrade to Pro for unlimited access."}
           </p>
           <button onClick={handleUpgrade} className="mt-1 w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover transition-colors">
-            Upgrade to Pro — $7/mo
+            {isSignedIn ? "Upgrade to Pro — $7/mo" : "Sign in & Upgrade — $7/mo"}
           </button>
         </div>
       )}
