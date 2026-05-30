@@ -226,11 +226,13 @@ export default {
           return json(503, { ok: false, error: "Payments not configured." });
         }
         const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+        const baseUrl = `${url.protocol}//${url.host}`;
         const session = await createCheckoutSession(
           env.STRIPE_SECRET_KEY,
           env.STRIPE_PRO_PRICE_ID,
           user.email,
-          user.id
+          user.id,
+          baseUrl,
         );
         return json(200, { ok: true, result: session });
       }
@@ -242,7 +244,8 @@ export default {
         if (!env.STRIPE_SECRET_KEY) return json(503, { ok: false, error: "Payments not configured." });
         const user = await getUser(env.DB, clerkUser.userId);
         if (!user?.stripe_customer_id) return json(400, { ok: false, error: "No active subscription." });
-        const portal = await createPortalSession(env.STRIPE_SECRET_KEY, user.stripe_customer_id);
+        const baseUrl = `${url.protocol}//${url.host}`;
+        const portal = await createPortalSession(env.STRIPE_SECRET_KEY, user.stripe_customer_id, baseUrl);
         return json(200, { ok: true, result: portal });
       }
 

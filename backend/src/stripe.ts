@@ -7,8 +7,13 @@ const STRIPE_API = "https://api.stripe.com/v1";
 
 // Price IDs — set these after creating products in Stripe dashboard
 // wrangler secret put STRIPE_PRO_PRICE_ID
-const DEFAULT_SUCCESS_URL = "https://quizik-backend.zakhar-bybko.workers.dev/payment/success";
-const DEFAULT_CANCEL_URL  = "https://quizik-backend.zakhar-bybko.workers.dev/payment/cancel";
+// These are set dynamically from the request's own host so dev/prod use correct URLs
+function getPaymentUrls(baseUrl: string) {
+  return {
+    success: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel:  `${baseUrl}/payment/cancel`,
+  };
+}
 
 function stripeHeaders(secretKey: string): Headers {
   const h = new Headers();
@@ -27,15 +32,17 @@ export async function createCheckoutSession(
   secretKey: string,
   proPriceId: string,
   customerEmail: string,
-  userId: string
+  userId: string,
+  baseUrl: string,
 ): Promise<{ url: string }> {
+  const urls = getPaymentUrls(baseUrl);
   const body = encodeForm({
     "mode": "subscription",
     "line_items[0][price]": proPriceId,
     "line_items[0][quantity]": "1",
     "customer_email": customerEmail,
-    "success_url": `${DEFAULT_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}`,
-    "cancel_url": DEFAULT_CANCEL_URL,
+    "success_url": urls.success,
+    "cancel_url": urls.cancel,
     "metadata[user_id]": userId,
     "subscription_data[metadata][user_id]": userId,
   });
@@ -55,11 +62,12 @@ export async function createCheckoutSession(
 
 export async function createPortalSession(
   secretKey: string,
-  stripeCustomerId: string
+  stripeCustomerId: string,
+  baseUrl: string,
 ): Promise<{ url: string }> {
   const body = encodeForm({
     "customer": stripeCustomerId,
-    "return_url": DEFAULT_CANCEL_URL,
+    "return_url": `${baseUrl}/payment/cancel`,
   });
 
   const resp = await fetch(`${STRIPE_API}/billing_portal/sessions`, {
