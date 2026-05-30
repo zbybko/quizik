@@ -3,6 +3,7 @@ import { useAuth, useUser } from "@clerk/chrome-extension";
 import { ChatPage } from "@pages/chat";
 import { SettingsPage } from "@pages/settings";
 import { SignInPage } from "@pages/sign-in";
+import { DEFAULT_BACKEND_URL } from "@shared/config";
 import { analytics } from "@shared/lib/analytics";
 
 type View = "chat" | "settings";
@@ -24,6 +25,12 @@ export default function App() {
     document.body.classList.toggle("view-settings", settingsAsPage);
     if (!settingsAsPage) void analytics.extensionOpened();
   }, [settingsAsPage]);
+
+  // Always sync the backend URL baked in at build time → chrome.storage
+  // so background.js (which can't use Vite env vars) always uses the correct worker.
+  useEffect(() => {
+    void chrome.storage.local.set({ backendUrl: DEFAULT_BACKEND_URL });
+  }, []);
 
   // Sync Clerk token → chrome.storage so background.js can use it
   useEffect(() => {
