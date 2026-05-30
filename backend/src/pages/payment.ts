@@ -142,10 +142,7 @@ export function paymentSuccessPage(): string {
       <li>All quiz sites supported</li>
       <li>7 languages supported</li>
     </ul>
-    <button class="btn btn-primary" onclick="window.close()">
-      Back to Quizik →
-    </button>
-    <p class="countdown" id="countdown">Closing in 5 seconds…</p>
+    <p class="countdown">You can close this tab and return to Quizik.</p>
   </div>
   <script>
     // Confetti
@@ -164,14 +161,6 @@ export function paymentSuccessPage(): string {
       ].join(';');
       container.appendChild(el);
     }
-    // Countdown
-    let n = 5;
-    const cd = document.getElementById('countdown');
-    const t = setInterval(() => {
-      n--;
-      if (n <= 0) { clearInterval(t); window.close(); }
-      else cd.textContent = 'Closing in ' + n + ' seconds…';
-    }, 1000);
   </script>
 </body>
 </html>`;
@@ -192,9 +181,7 @@ export function paymentCancelPage(): string {
     <h1>No problem!</h1>
     <p>Your upgrade was cancelled. You can still use Quizik with 20 free requests per day.</p>
     <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
-      <button class="btn btn-primary" onclick="window.close()">
-        Back to Quizik
-      </button>
+      <p style="font-size:14px;color:#a1a1aa;">You can close this tab and return to Quizik.</p>
     </div>
   </div>
 </body>
