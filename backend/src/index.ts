@@ -8,6 +8,7 @@ import uk from "./locales/uk.json";
 import navigationConfig from "./config/navigation.json";
 import { privacyPage, termsPage } from "./pages/legal";
 import { authPage } from "./pages/auth";
+import { paymentSuccessPage, paymentCancelPage } from "./pages/payment";
 import {
   type D1Database,
   PLAN_LIMITS, ANON_DAILY_LIMIT,
@@ -274,22 +275,10 @@ export default {
 
       // ── Payment success / cancel pages ────────────────────────────────────
       if (request.method === "GET" && url.pathname === "/payment/success") {
-        return new Response(
-          `<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px">
-          <h1>🎉 You're now on Pro!</h1>
-          <p>Close this tab and enjoy Quizik.</p>
-          </body></html>`,
-          { headers: { "Content-Type": "text/html" } }
-        );
+        return new Response(paymentSuccessPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
       }
       if (request.method === "GET" && url.pathname === "/payment/cancel") {
-        return new Response(
-          `<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px">
-          <h1>Payment cancelled</h1>
-          <p>You can upgrade anytime from the Quizik panel.</p>
-          </body></html>`,
-          { headers: { "Content-Type": "text/html" } }
-        );
+        return new Response(paymentCancelPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
       }
 
       // ── AI hint (main endpoint) ───────────────────────────────────────────
