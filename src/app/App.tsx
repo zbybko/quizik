@@ -3,10 +3,11 @@ import { useAuth, useUser } from "@clerk/chrome-extension";
 import { ChatPage } from "@pages/chat";
 import { SettingsPage } from "@pages/settings";
 import { SignInPage } from "@pages/sign-in";
-import { IS_DEV_MODE } from "@shared/config";
+import { DEFAULT_BACKEND_URL, IS_DEV_MODE } from "@shared/config";
 import { analytics } from "@shared/lib/analytics";
 
 type View = "chat" | "settings";
+const PROD_BACKEND_URL = "https://quizik-backend.zakhar-bybko.workers.dev";
 
 function initialView(): View {
   if (document.body.dataset.view === "settings") return "settings";
@@ -25,6 +26,17 @@ export default function App() {
     document.body.classList.toggle("view-settings", settingsAsPage);
     if (!settingsAsPage) void analytics.extensionOpened();
   }, [settingsAsPage]);
+
+  useEffect(() => {
+    if (!IS_DEV_MODE) return;
+
+    void chrome.storage.local.get({ backendUrl: "" }).then((stored) => {
+      const backendUrl = String(stored.backendUrl || "").replace(/\/+$/, "");
+      if (!backendUrl || backendUrl === PROD_BACKEND_URL) {
+        return chrome.storage.local.set({ backendUrl: DEFAULT_BACKEND_URL });
+      }
+    });
+  }, []);
 
   // Sync Clerk token → chrome.storage so background.js can use it
   useEffect(() => {
