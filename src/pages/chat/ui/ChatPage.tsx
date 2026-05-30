@@ -102,17 +102,33 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
     }
   }, [sendRaw, dailyLimit, limitReached, handleSlashCommand]);
 
+  const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
   const goToCheckout = useCallback(async () => {
+    setUpgradeLoading(true);
+    setUpgradeError("");
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        setUpgradeError("Not signed in. Please sign in first.");
+        return;
+      }
       const res = await fetch(`${DEFAULT_BACKEND_URL}/stripe/checkout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (data?.result?.url) chrome.tabs.create({ url: data.result.url });
-    } catch { /* ignore */ }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.result?.url) {
+        setUpgradeError(data?.error || `Server error (${res.status})`);
+        return;
+      }
+      chrome.tabs.create({ url: data.result.url });
+    } catch (e: any) {
+      setUpgradeError(e?.message || "Could not open checkout.");
+    } finally {
+      setUpgradeLoading(false);
+    }
   }, [getToken]);
 
   const handleUpgrade = useCallback(() => {
@@ -206,9 +222,16 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
               ? "You've used all free requests today. Upgrade for unlimited access."
               : "Sign in for 20 free requests/day, or upgrade to Pro for unlimited access."}
           </p>
-          <button onClick={handleUpgrade} className="mt-1 w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover transition-colors">
-            {isSignedIn ? "Upgrade to Pro — $7/mo" : "Sign in & Upgrade — $7/mo"}
+          <button
+            onClick={handleUpgrade}
+            disabled={upgradeLoading}
+            className="mt-1 w-full py-2 rounded-lg bg-accent text-white text-[13px] font-semibold hover:bg-accent-hover disabled:opacity-60 transition-colors"
+          >
+            {upgradeLoading ? "Opening…" : isSignedIn ? "Upgrade to Pro — $7/mo" : "Sign in & Upgrade — $7/mo"}
           </button>
+          {upgradeError && (
+            <p className="text-[11px] text-red-400 mt-1">{upgradeError}</p>
+          )}
         </div>
       )}
 
