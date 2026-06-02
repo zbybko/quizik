@@ -2187,4 +2187,24 @@
     }
     return String(value).replace(/["\\]/g, "\\$&");
   }
+
+  // ── Selected text tracking ────────────────────────────────────────────────
+  // Watches for text selection changes and stores in chrome.storage.local
+  // so the side panel can display and use the selected text as context.
+
+  let selectionDebounceTimer = null;
+
+  function handleSelectionChange() {
+    clearTimeout(selectionDebounceTimer);
+    selectionDebounceTimer = setTimeout(() => {
+      const selection = window.getSelection();
+      const text = selection ? selection.toString().trim() : "";
+      // Only store selections of meaningful length (3–2000 chars)
+      const selectedText = text.length >= 3 && text.length <= 2000 ? text : "";
+      chrome.storage.local.set({ selectedText });
+    }, 300);
+  }
+
+  document.addEventListener("selectionchange", handleSelectionChange);
+
 })();
