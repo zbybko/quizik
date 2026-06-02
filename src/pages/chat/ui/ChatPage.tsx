@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth, useUser } from "@clerk/chrome-extension";
 import { MessageBubble, TypingIndicator } from "@entities/message";
-import { ChatComposer, ChatEmptyState } from "@features/chat-composer";
+import { ChatComposer, ChatEmptyState, SelectedTextChip } from "@features/chat-composer";
 import { ModeToggles } from "@features/mode-toggles";
 import { useChatLoop } from "@features/auto-loop";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
@@ -22,6 +22,7 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
   const [usageToday, setUsageToday] = useState(0);
   const [dailyLimit, setDailyLimit] = useState(20);
   const [pendingUpgrade, setPendingUpgrade] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
 
   const {
     status,
@@ -44,6 +45,23 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
   useEffect(() => {
     void refreshSettingsStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Watch for text selection from the active page (set by content.js)
+  useEffect(() => {
+    const load = async () => {
+      const stored = await chrome.storage.local.get({ selectedText: "" });
+      setSelectedText(stored.selectedText || "");
+    };
+    void load();
+
+    const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area === "local" && "selectedText" in changes) {
+        setSelectedText(changes.selectedText.newValue || "");
+      }
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
   }, []);
 
   useEffect(() => {
@@ -92,7 +110,16 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
     if (limitReached) return;
     try {
       setLimitReached(false);
-      await sendRaw(text);
+      // Prepend selected text as context if present
+      const fullText = selectedText
+        ? `Selected text from page:\n"${selectedText}"\n\n${text}`.trim()
+        : text;
+      await sendRaw(fullText);
+      // Clear selection after sending
+      if (selectedText) {
+        setSelectedText("");
+        chrome.storage.local.set({ selectedText: "" });
+      }
     } catch (e: any) {
       if (e?.code === "limit_reached" || e?.message === "limit_reached") {
         setLimitReached(true);
@@ -100,7 +127,7 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
         setDailyLimit(e.dailyLimit ?? dailyLimit);
       }
     }
-  }, [sendRaw, dailyLimit, limitReached, handleSlashCommand]);
+  }, [sendRaw, dailyLimit, limitReached, handleSlashCommand, selectedText]);
 
   const [upgradeError, setUpgradeError] = useState("");
   const [upgradeLoading, setUpgradeLoading] = useState(false);
@@ -241,6 +268,15 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
         autoMode={autoMode}
         hasMessages={hasMessages}
         onSend={send}
+        topSlot={selectedText ? (
+          <SelectedTextChip
+            text={selectedText}
+            onDismiss={() => {
+              setSelectedText("");
+              chrome.storage.local.set({ selectedText: "" });
+            }}
+          />
+        ) : null}
         toolbar={
           <ModeToggles
             answerMode={answerMode}
