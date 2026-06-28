@@ -35,6 +35,7 @@ interface KVNamespace {
 interface Env {
   OPENAI_API_KEY: string;
   OPENAI_MODEL?: string;
+  ENV?: string;                     // "development" | "production" (from wrangler vars)
   APP_SHARED_SECRET?: string;
   RATELIMIT_KV: KVNamespace;
   DB: D1Database;
@@ -100,6 +101,11 @@ export default {
       }
 
       const url = new URL(request.url);
+
+      // In dev, brand-new accounts start on Pro so you don't have to pay to test.
+      // Existing users keep whatever plan they have (see upsertUser).
+      const isDev = env.ENV === "development";
+      const devDefaultPlan: "free" | "pro" = isDev ? "pro" : "free";
 
       if (request.method === "GET" && url.pathname === "/health") {
         return json(200, { ok: true });
@@ -181,7 +187,7 @@ export default {
       if (request.method === "POST" && url.pathname === "/auth/sync-user") {
         const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
         if (!clerkUser) return json(401, { ok: false, error: "Invalid or missing token." });
-        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email, devDefaultPlan);
         const usageToday = await getUserUsageToday(env.DB, user.id);
         return json(200, {
           ok: true,
@@ -218,6 +224,22 @@ export default {
         return json(400, { ok: false, error: "Authentication or device ID required." });
       }
 
+      // ── Dev only: manually set your own plan (debug) ──────────────────────
+      if (request.method === "POST" && url.pathname === "/dev/set-plan") {
+        if (!isDev) return json(404, { ok: false, error: "Route not found." });
+        const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
+        if (!clerkUser) return json(401, { ok: false, error: "Sign in required." });
+        const body = await readJsonBody(request);
+        const plan: "free" | "pro" = body.plan === "pro" ? "pro" : "free";
+        await upsertUser(env.DB, clerkUser.userId, clerkUser.email, plan);
+        await setUserPlan(env.DB, clerkUser.userId, plan);
+        const usageToday = await getUserUsageToday(env.DB, clerkUser.userId);
+        return json(200, {
+          ok: true,
+          result: { plan, usageToday, dailyLimit: PLAN_LIMITS[plan] },
+        });
+      }
+
       // ── Stripe: create checkout session ───────────────────────────────────
       if (request.method === "POST" && url.pathname === "/stripe/checkout") {
         const clerkUser = await extractUser(request, env.CLERK_DOMAIN);
@@ -225,7 +247,7 @@ export default {
         if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PRO_PRICE_ID) {
           return json(503, { ok: false, error: "Payments not configured." });
         }
-        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+        const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email, devDefaultPlan);
         const baseUrl = `${url.protocol}//${url.host}`;
         const session = await createCheckoutSession(
           env.STRIPE_SECRET_KEY,
@@ -299,7 +321,7 @@ export default {
 
         if (clerkUser) {
           // Authenticated user
-          const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email);
+          const user = await upsertUser(env.DB, clerkUser.userId, clerkUser.email, devDefaultPlan);
           const usageToday = await getUserUsageToday(env.DB, user.id);
           const limit = PLAN_LIMITS[user.plan] ?? PLAN_LIMITS.free;
           if (usageToday >= limit) {

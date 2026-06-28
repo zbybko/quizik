@@ -43,14 +43,17 @@ export async function getUser(db: D1Database, userId: string): Promise<User | nu
 export async function upsertUser(
   db: D1Database,
   id: string,
-  email: string
+  email: string,
+  defaultPlan: "free" | "pro" = "free"
 ): Promise<User> {
+  // `defaultPlan` only applies on first insert; existing users keep their plan
+  // (so a manually-set dev plan survives re-syncs).
   await db
     .prepare(
-      `INSERT INTO users (id, email, plan) VALUES (?, ?, 'free')
+      `INSERT INTO users (id, email, plan) VALUES (?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET email = excluded.email`
     )
-    .bind(id, email)
+    .bind(id, email, defaultPlan)
     .run();
 
   return (await getUser(db, id))!;

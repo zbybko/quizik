@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth, useClerk, useUser } from "@clerk/chrome-extension";
-import { DEFAULT_BACKEND_URL } from "@shared/config";
+import { DEFAULT_BACKEND_URL, IS_DEV_MODE } from "@shared/config";
 
 interface UsageData {
   plan: "anon" | "free" | "pro";
@@ -16,6 +16,7 @@ export function UsageCard() {
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [devSetting, setDevSetting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -71,6 +72,21 @@ export function UsageCard() {
       if (json?.result?.url) chrome.tabs.create({ url: json.result.url });
     } catch { /* ignore */ }
     finally { setPortalLoading(false); }
+  };
+
+  const handleDevSetPlan = async (plan: "free" | "pro") => {
+    setDevSetting(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await fetch(`${DEFAULT_BACKEND_URL}/dev/set-plan`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      await load();
+    } catch { /* ignore */ }
+    finally { setDevSetting(false); }
   };
 
   if (loading) return (
@@ -151,6 +167,29 @@ export function UsageCard() {
           </button>
         )}
       </div>
+
+      {/* Dev-only plan switcher (debug builds only) */}
+      {IS_DEV_MODE && isSignedIn && (
+        <div className="flex flex-col gap-1.5 pt-2 border-t border-dashed border-line">
+          <span className="text-[10px] uppercase tracking-wide text-ink-3">Dev · set plan</span>
+          <div className="flex gap-1.5">
+            {(["free", "pro"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => handleDevSetPlan(p)}
+                disabled={devSetting || plan === p}
+                className={`flex-1 py-1.5 rounded-lg border text-[12px] capitalize transition-colors disabled:opacity-50 ${
+                  plan === p
+                    ? "border-accent text-accent bg-accent-soft"
+                    : "border-line text-ink-2 hover:border-accent hover:text-accent"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
