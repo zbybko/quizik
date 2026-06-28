@@ -27,6 +27,9 @@ class Element {
 }
 
 const fixture = buildMinimalFixture(minimalFixtureData);
+// content.js registers a "selectionchange" listener on init; the mock document
+// doesn't need to fire it, just to expose the method.
+fixture.document.addEventListener = () => {};
 const context = createContext({
   chrome: { runtime: { onMessage: { addListener() {} } } },
   window: {

@@ -18,6 +18,7 @@ import {
 } from "./db";
 import { extractUser } from "./auth";
 import { createCheckoutSession, createPortalSession, verifyStripeWebhook } from "./stripe";
+import { normalizeMode, normalizeModel, normalizeScreenshotDataUrl } from "./normalize";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.5";
@@ -520,25 +521,6 @@ function pickSystemPrompt(mode: string) {
   if (mode === "answer") return ANSWER_SYSTEM_PROMPT;
   if (mode === "chat") return CHAT_SYSTEM_PROMPT;
   return SYSTEM_PROMPT;
-}
-
-function normalizeMode(value: unknown) {
-  if (value === "answer") return "answer";
-  if (value === "chat") return "chat";
-  return "hint";
-}
-
-function normalizeModel(value: unknown): string {
-  if (typeof value !== "string") return "";
-  const v = value.trim();
-  // Only accept plausible GPT model ids; reject anything else to avoid passing
-  // arbitrary strings to the OpenAI API.
-  return /^gpt-[a-z0-9.\-]{1,40}$/i.test(v) ? v : "";
-}
-
-function normalizeScreenshotDataUrl(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return /^data:image\/(?:png|jpeg|webp);base64,/i.test(value) ? value : "";
 }
 
 function normalizeQuestionPayload(payload: HintPayload) {

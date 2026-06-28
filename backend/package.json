@@ -10,7 +10,8 @@
     "logs": "wrangler tail",
     "logs:dev": "wrangler tail --env dev",
     "typecheck": "tsc --noEmit",
-    "check": "tsc --noEmit"
+    "test": "node --experimental-strip-types --test \"test/*.test.ts\"",
+    "check": "tsc --noEmit && npm test"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250501.0",

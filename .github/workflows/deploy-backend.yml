@@ -1,0 +1,48 @@
+name: Deploy backend
+
+on:
+  push:
+    branches: [main, dev]
+    # Only redeploy when the worker (or its config) actually changes.
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+concurrency:
+  # One deploy per branch at a time; newer pushes cancel older in-flight runs.
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install backend deps
+        run: npm ci --prefix backend
+
+      - name: Typecheck & test backend
+        run: npm run check --prefix backend
+
+      - name: Deploy to dev
+        if: github.ref == 'refs/heads/dev'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: backend
+          command: deploy --env dev
+
+      - name: Deploy to production
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: backend
+          command: deploy

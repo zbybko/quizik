@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type ApplyDemoAnswerResult,
@@ -28,6 +28,7 @@ interface UseChatLoopApi {
   isLoading: boolean;
   detected: DetectedContext | null;
   messages: ChatMessage[];
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   answerMode: boolean;
   autoMode: boolean;
   toggleAnswerMode: () => void;

@@ -6,6 +6,7 @@ import { ChatComposer, ChatEmptyState, SelectedTextChip } from "@features/chat-c
 import { ModeToggles } from "@features/mode-toggles";
 import { useChatLoop } from "@features/auto-loop";
 import { DEFAULT_BACKEND_URL } from "@shared/config";
+import { storageGet } from "@shared/lib/storage";
 
 const iconUrl = chrome.runtime.getURL("icons/icon-48.png");
 
@@ -50,14 +51,14 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
   // Watch for text selection from the active page (set by content.js)
   useEffect(() => {
     const load = async () => {
-      const stored = await chrome.storage.local.get({ selectedText: "" });
+      const stored = await storageGet({ selectedText: "" });
       setSelectedText(stored.selectedText || "");
     };
     void load();
 
     const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area === "local" && "selectedText" in changes) {
-        setSelectedText(changes.selectedText.newValue || "");
+        setSelectedText((changes.selectedText.newValue as string | undefined) || "");
       }
     };
     chrome.storage.onChanged.addListener(onChange);
@@ -75,7 +76,7 @@ export function ChatPage({ onOpenSettings, onOpenSignIn }: ChatPageProps) {
     if (cmd !== "/status" && cmd !== "/usage") return false;
 
     try {
-      const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
+      const stored = await storageGet({ authToken: "", deviceId: "" });
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
       if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });
