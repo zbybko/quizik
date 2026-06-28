@@ -17,6 +17,21 @@ export const AUTO_LOOP_DELAY_MS = 1200;
 export const AUTO_LOOP_MAX_ITERATIONS = 50;
 
 /**
+ * GPT models selectable in dev builds. Empty value = use the backend's
+ * configured default (OPENAI_MODEL). Only honored by the backend in dev.
+ */
+export const GPT_MODELS: { value: string; label: string }[] = [
+  { value: "", label: "Default (server)" },
+  { value: "gpt-5.5", label: "gpt-5.5" },
+  { value: "gpt-5", label: "gpt-5" },
+  { value: "gpt-5-mini", label: "gpt-5-mini" },
+  { value: "gpt-4.1", label: "gpt-4.1" },
+  { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
+  { value: "gpt-4o", label: "gpt-4o" },
+  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+];
+
+/**
  * Backend URL — picked from VITE_BACKEND_URL env var at build time.
  * dev build  → https://quizik-backend-dev.zakhar-bybko.workers.dev
  * prod build → https://quizik-backend.zakhar-bybko.workers.dev

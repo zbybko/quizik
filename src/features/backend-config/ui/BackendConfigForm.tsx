@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_BACKEND_URL } from "@shared/config";
+import { DEFAULT_BACKEND_URL, GPT_MODELS } from "@shared/config";
 import { storageGet, storageSet } from "@shared/lib/storage";
 
 function normalizeBackendUrl(value: string): string {
@@ -11,13 +11,15 @@ export function BackendConfigForm() {
   const { t } = useTranslation();
   const [backendUrl, setBackendUrl] = useState(DEFAULT_BACKEND_URL);
   const [appSharedSecret, setAppSharedSecret] = useState("");
+  const [gptModel, setGptModel] = useState("");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
     void (async () => {
-      const res = await storageGet({ backendUrl: DEFAULT_BACKEND_URL, appSharedSecret: "" });
+      const res = await storageGet({ backendUrl: DEFAULT_BACKEND_URL, appSharedSecret: "", gptModel: "" });
       setBackendUrl(res.backendUrl);
       setAppSharedSecret(res.appSharedSecret);
+      setGptModel(res.gptModel);
     })();
   }, []);
 
@@ -25,7 +27,8 @@ export function BackendConfigForm() {
     e.preventDefault();
     await storageSet({
       backendUrl: normalizeBackendUrl(backendUrl),
-      appSharedSecret
+      appSharedSecret,
+      gptModel
     });
     setStatus(t("options.saved"));
     setTimeout(() => setStatus(""), 2000);
@@ -56,6 +59,19 @@ export function BackendConfigForm() {
             onChange={(e) => setAppSharedSecret(e.target.value.trim())}
             className="w-full px-3 py-2.5 border border-line rounded-lg bg-surface text-ink-1 text-sm focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent-soft transition-shadow"
           />
+        </label>
+
+        <label className="grid gap-1.5 text-[13px] font-medium text-ink-2">
+          GPT model
+          <select
+            value={gptModel}
+            onChange={(e) => setGptModel(e.target.value)}
+            className="w-full px-3 py-2.5 border border-line rounded-lg bg-surface text-ink-1 text-sm focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent-soft transition-shadow"
+          >
+            {GPT_MODELS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </label>
 
         <button
