@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth, useClerk, useUser } from "@clerk/chrome-extension";
 import { DEFAULT_BACKEND_URL, IS_DEV_MODE } from "@shared/config";
+import { storageGet } from "@shared/lib/storage";
 
 interface UsageData {
   plan: "anon" | "free" | "pro";
@@ -21,7 +22,7 @@ export function UsageCard() {
   async function load() {
     setLoading(true);
     try {
-      const stored = await chrome.storage.local.get({ authToken: "", deviceId: "" });
+      const stored = await storageGet({ authToken: "", deviceId: "" });
       const headers: Record<string, string> = { "X-Device-ID": stored.deviceId || "unknown" };
       if (stored.authToken) headers["Authorization"] = `Bearer ${stored.authToken}`;
       const res = await fetch(`${DEFAULT_BACKEND_URL}/user/status`, { headers });

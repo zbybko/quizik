@@ -4,6 +4,8 @@
  * The project API key is intentionally public (write-only, standard for client analytics).
  */
 
+import { storageGet, storageSet } from "@shared/lib/storage";
+
 const POSTHOG_HOST = "https://eu.i.posthog.com";
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 const ENV = (import.meta.env.VITE_ENV as string | undefined) || "production";
@@ -13,14 +15,14 @@ let _distinctId: string | null = null;
 
 async function getDistinctId(): Promise<string> {
   if (_distinctId) return _distinctId;
-  const stored = await chrome.storage.local.get({ analyticsId: "" });
+  const stored = await storageGet({ analyticsId: "" });
   if (stored.analyticsId) {
     _distinctId = stored.analyticsId;
     return _distinctId!;
   }
   // Generate a random anonymous ID
   const id = "anon_" + crypto.randomUUID();
-  await chrome.storage.local.set({ analyticsId: id });
+  await storageSet({ analyticsId: id });
   _distinctId = id;
   return _distinctId!;
 }

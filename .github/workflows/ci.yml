@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint & tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install backend deps
+        run: npm ci --prefix backend
+
+      # tsc (frontend + backend) + node --check on extension scripts
+      # + extractor smoke test + backend unit tests
+      - name: Run checks
+        run: npm run check
+
+  build-extension:
+    name: Build extension (zip artifact)
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Package production zip
+        run: npm run package
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-zip
+          path: dist/*.zip
+          if-no-files-found: error
