@@ -168,6 +168,11 @@ async function handleHintRequest(payload) {
     throw new Error("Не удалось найти видимый текст вопроса или скриншот страницы.");
   }
 
+  // Dev-only model override (ignored by the backend in production).
+  if (settings.gptModel) {
+    requestPayload.model = settings.gptModel;
+  }
+
   const authHeaders = await getAuthHeaders();
   const headers = { "Content-Type": "application/json", ...authHeaders };
 
@@ -212,7 +217,8 @@ async function getSettings() {
 async function getPrivateSettings() {
   return chrome.storage.local.get({
     backendUrl: DEFAULT_BACKEND_URL,
-    appSharedSecret: ""
+    appSharedSecret: "",
+    gptModel: ""
   });
 }
 

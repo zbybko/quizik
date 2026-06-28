@@ -430,6 +430,7 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown>> 
 
 interface HintPayload {
   mode?: string;
+  model?: string;
   screenshotDataUrl?: string;
   history?: { role?: string; text?: string }[];
   userText?: string;
@@ -455,6 +456,11 @@ async function handleHintRequest(payload: HintPayload, env: Env) {
     throw httpError(400, "Visible quiz text, a screenshot, or chat input is required.");
   }
 
+  // Dev-only model override: a sanitized GPT model id from the client wins over
+  // the configured default. Production ignores it and stays on env.OPENAI_MODEL.
+  const model = (env.ENV === "development" && normalizeModel(payload.model))
+    || env.OPENAI_MODEL || DEFAULT_MODEL;
+
   const systemPrompt = pickSystemPrompt(mode);
   const input: unknown[] = [{ role: "system", content: systemPrompt }];
 
@@ -477,7 +483,7 @@ async function handleHintRequest(payload: HintPayload, env: Env) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: env.OPENAI_MODEL || DEFAULT_MODEL,
+      model,
       input,
       max_output_tokens: mode === "answer" ? 200 : 1200
     })
@@ -520,6 +526,14 @@ function normalizeMode(value: unknown) {
   if (value === "answer") return "answer";
   if (value === "chat") return "chat";
   return "hint";
+}
+
+function normalizeModel(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const v = value.trim();
+  // Only accept plausible GPT model ids; reject anything else to avoid passing
+  // arbitrary strings to the OpenAI API.
+  return /^gpt-[a-z0-9.\-]{1,40}$/i.test(v) ? v : "";
 }
 
 function normalizeScreenshotDataUrl(value: unknown): string {
