@@ -18,6 +18,9 @@ A Chrome / Chromium Manifest V3 extension that opens a chat panel over any quiz 
 - **Backend** — Cloudflare Worker (TypeScript). Bundled locale JSONs and navigation config. Edge-deployed worldwide. Local dev via `wrangler dev` (runs the real Workers runtime locally).
 - **LLM** — OpenAI Responses API. Model configurable via `OPENAI_MODEL`.
 
+Architectural decisions with real tradeoffs are recorded in
+[`docs/adr/`](docs/adr/).
+
 ## Setup
 
 1. Install dependencies and build the bundle:
