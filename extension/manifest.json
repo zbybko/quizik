@@ -3,7 +3,7 @@
   "name": "Quizik",
   "short_name": "Quizik",
   "description": "AI study chat for any quiz page. Ask questions, get hints, understand the concept behind the answer.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Zakhar Bybko",
   "homepage_url": "https://github.com/zbybko/quizik",
   "icons": {
